@@ -362,3 +362,198 @@ def test_alert_group_labels_get_key(
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"key": {"id": "a", "name": "a"}, "values": [{"id": "b", "name": "b"}]}
+
+
+@pytest.mark.django_db
+def test_alert_group_labels_get_key_by_name(
+    make_organization_and_user_with_plugin_token,
+    make_alert_receive_channel,
+    make_alert_group,
+    make_alert_group_label_association,
+    make_user_auth_headers,
+):
+    organization, user, token = make_organization_and_user_with_plugin_token()
+    alert_receive_channel = make_alert_receive_channel(organization)
+    alert_group = make_alert_group(alert_receive_channel)
+    make_alert_group_label_association(organization, alert_group, key_name="service", value_name="api")
+
+    client = APIClient()
+    url = reverse("api-internal:alert_group_labels-get-key-by-name", kwargs={"key_name": "service"})
+    response = client.get(url, format="json", **make_user_auth_headers(user, token))
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {
+        "key": {"id": "service", "name": "service"},
+        "values": [{"id": "api", "name": "api"}],
+    }
+
+
+@pytest.mark.django_db
+def test_alert_group_labels_can_be_added_and_removed(
+    make_organization_and_user_with_plugin_token,
+    make_alert_receive_channel,
+    make_alert_group,
+    make_user_auth_headers,
+):
+    organization, user, token = make_organization_and_user_with_plugin_token()
+    alert_receive_channel = make_alert_receive_channel(organization)
+    alert_group = make_alert_group(alert_receive_channel)
+    headers = make_user_auth_headers(user, token)
+    payload = {
+        "key": {"id": "service-id", "name": "service", "prescribed": False},
+        "value": {"id": "api-id", "name": "api", "prescribed": False},
+    }
+
+    client = APIClient()
+    add_url = reverse("api-internal:alertgroup-labels", kwargs={"pk": alert_group.public_primary_key})
+    add_response = client.post(add_url, payload, format="json", **headers)
+
+    assert add_response.status_code == status.HTTP_200_OK
+    assert add_response.json() == {
+        "key": {"id": "service", "name": "service"},
+        "value": {"id": "api", "name": "api"},
+    }
+    assert alert_group.labels.filter(key_name="service", value_name="api").count() == 1
+
+    duplicate_response = client.post(add_url, payload, format="json", **headers)
+    assert duplicate_response.status_code == status.HTTP_200_OK
+    assert alert_group.labels.filter(key_name="service", value_name="api").count() == 1
+
+    remove_url = reverse("api-internal:alertgroup-remove-label", kwargs={"pk": alert_group.public_primary_key})
+    remove_response = client.post(remove_url, payload, format="json", **headers)
+
+    assert remove_response.status_code == status.HTTP_204_NO_CONTENT
+    assert not alert_group.labels.filter(key_name="service", value_name="api").exists()
+
+
+@pytest.mark.django_db
+def test_alert_group_labels_reject_invalid_payload(
+    make_organization_and_user_with_plugin_token,
+    make_alert_receive_channel,
+    make_alert_group,
+    make_user_auth_headers,
+):
+    organization, user, token = make_organization_and_user_with_plugin_token()
+    alert_receive_channel = make_alert_receive_channel(organization)
+    alert_group = make_alert_group(alert_receive_channel)
+
+    client = APIClient()
+    url = reverse("api-internal:alertgroup-labels", kwargs={"pk": alert_group.public_primary_key})
+    response = client.post(
+        url,
+        {"key": {"name": "service"}, "value": {}},
+        format="json",
+        **make_user_auth_headers(user, token),
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@patch(
+    "apps.labels.client.LabelsAPIClient.get_keys",
+    return_value=([{"name": "service", "id": "service-id", "prescribed": False}], MockResponse(status_code=200)),
+)
+@patch(
+    "apps.labels.client.LabelsAPIClient.get_label_by_key_id",
+    return_value=(
+        {
+            "key": {"id": "service-id", "name": "service", "prescribed": False},
+            "values": [{"id": "api-id", "name": "api", "prescribed": False}],
+        },
+        MockResponse(status_code=200),
+    ),
+)
+@pytest.mark.django_db
+def test_labels_dropdown_context(
+    mocked_get_label,
+    mocked_get_keys,
+    make_organization_and_user_with_plugin_token,
+    make_user_auth_headers,
+):
+    _, user, token = make_organization_and_user_with_plugin_token()
+    client = APIClient()
+
+    response = client.get(
+        reverse("api-internal:labels-dropdown-context"),
+        format="json",
+        **make_user_auth_headers(user, token),
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {
+        "label_options": [
+            {
+                "key": {"id": "service-id", "name": "service", "prescribed": False},
+                "values": [{"id": "api-id", "name": "api", "prescribed": False}],
+            }
+        ],
+        "archived": [],
+    }
+    mocked_get_keys.assert_called_once()
+    mocked_get_label.assert_called_once_with("service-id")
+
+
+@patch(
+    "apps.labels.client.LabelsAPIClient.get_label_by_key_name",
+    return_value=(
+        {"key": {"id": "service-id", "name": "service"}, "values": []},
+        MockResponse(status_code=200),
+    ),
+)
+@patch(
+    "apps.labels.client.LabelsAPIClient.add_value",
+    return_value=(
+        {
+            "key": {"id": "service-id", "name": "service"},
+            "values": [{"id": "api-id", "name": "api"}],
+        },
+        MockResponse(status_code=200),
+    ),
+)
+@pytest.mark.django_db
+def test_add_label_value_by_key_name(
+    mocked_add_value,
+    mocked_get_label,
+    make_organization_and_user_with_plugin_token,
+    make_user_auth_headers,
+):
+    _, user, token = make_organization_and_user_with_plugin_token()
+    client = APIClient()
+    url = reverse("api-internal:add-value-by-key-name", kwargs={"key_name": "service"})
+
+    response = client.post(
+        url,
+        {"name": "api"},
+        format="json",
+        **make_user_auth_headers(user, token),
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["values"] == [{"id": "api-id", "name": "api"}]
+    mocked_get_label.assert_called_once_with("service")
+    mocked_add_value.assert_called_once_with("service-id", {"name": "api"})
+
+
+@patch("apps.labels.client.LabelsAPIClient.get_label_by_key_name")
+@patch("apps.labels.client.LabelsAPIClient.add_value")
+@pytest.mark.django_db
+def test_add_label_value_by_key_name_rejects_invalid_payload_before_calling_labels_api(
+    mocked_add_value,
+    mocked_get_label,
+    make_organization_and_user_with_plugin_token,
+    make_user_auth_headers,
+):
+    _, user, token = make_organization_and_user_with_plugin_token()
+    client = APIClient()
+    url = reverse("api-internal:add-value-by-key-name", kwargs={"key_name": "service"})
+
+    response = client.post(
+        url,
+        {"name": ""},
+        format="json",
+        **make_user_auth_headers(user, token),
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    mocked_get_label.assert_not_called()
+    mocked_add_value.assert_not_called()

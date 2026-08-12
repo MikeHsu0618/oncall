@@ -50,3 +50,19 @@ class AlertGroupEscalationSnapshotAPISerializer(serializers.Serializer):
 
     class Meta:
         fields = ["escalation_chain", "channel_filter", "escalation_policies"]
+
+
+class EscalationStepPreviewSerializer(serializers.Serializer):
+    step = serializers.IntegerField()
+    step_display = serializers.CharField()
+    schedule_name = serializers.CharField(allow_null=True)
+    webhook_name = serializers.CharField(allow_null=True)
+
+
+class EscalationSnapshotNextPreviewSerializer(serializers.Serializer):
+    next_step_eta = serializers.DateTimeField(allow_null=True)
+    steps = EscalationStepPreviewSerializer(many=True)
+    users = FastUserSerializer(many=True)
+    count = serializers.IntegerField()
+    can_escalate_next = serializers.BooleanField()
+    escalation_exhausted = serializers.BooleanField()

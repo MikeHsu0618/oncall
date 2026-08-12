@@ -7,7 +7,7 @@ from .views.alert_group import AlertGroupView
 from .views.alert_group_table_settings import AlertGroupTableColumnsViewSet
 from .views.alert_receive_channel import AlertReceiveChannelView
 from .views.alert_receive_channel_template import AlertReceiveChannelTemplateView
-from .views.alerts import AlertDetailView
+from .views.alerts import AlertDetailView, AlertView
 from .views.channel_filter import ChannelFilterView
 from .views.direct_paging import DirectPagingAPIView
 from .views.escalation_chain import EscalationChainViewSet
@@ -16,6 +16,7 @@ from .views.features import FeaturesAPIView
 from .views.integration_heartbeat import IntegrationHeartBeatView
 from .views.labels import AlertGroupLabelsViewSet, LabelsViewSet
 from .views.live_setting import LiveSettingViewSet
+from .views.mobile_devices import MobileDeviceViewSet
 from .views.on_call_shifts import OnCallShiftView
 from .views.organization import (
     CurrentOrganizationView,
@@ -106,7 +107,18 @@ urlpatterns = [
         "preview_template_options", PreviewTemplateOptionsView.as_view(), name="preview_template_options"
     ),
     optional_slash_path("route_regex_debugger", RouteRegexDebuggerView.as_view(), name="route_regex_debugger"),
+    re_path(r"^alerts/?$", AlertView.as_view({"get": "list"}), name="alerts-list"),
     re_path(r"^alerts/(?P<id>\w+)/?$", AlertDetailView.as_view(), name="alerts-detail"),
+    re_path(
+        r"^mobile_app/devices/?$",
+        MobileDeviceViewSet.as_view({"get": "list"}),
+        name="mobile-devices-list",
+    ),
+    re_path(
+        r"^mobile_app/devices/(?P<device_id>\d+)/?$",
+        MobileDeviceViewSet.as_view({"delete": "destroy"}),
+        name="mobile-devices-detail",
+    ),
     optional_slash_path("direct_paging", DirectPagingAPIView.as_view(), name="direct_paging"),
 ]
 
@@ -123,6 +135,11 @@ urlpatterns += [
 urlpatterns += [
     re_path(r"^labels/keys/?$", LabelsViewSet.as_view({"get": "get_keys"}), name="get_keys"),
     re_path(
+        r"^labels/dropdown-context/?$",
+        LabelsViewSet.as_view({"get": "dropdown_context"}),
+        name="labels-dropdown-context",
+    ),
+    re_path(
         r"^labels/id/(?P<key_id>[\w\-]+)/?$",
         LabelsViewSet.as_view({"get": "get_key", "put": "rename_key"}),
         name="get_update_key",
@@ -131,6 +148,11 @@ urlpatterns += [
         r"^labels/name/(?P<key_name>[\w\-]+)/?$",
         LabelsViewSet.as_view({"get": "get_key_by_name"}),
         name="get_key_by_name",
+    ),
+    re_path(
+        r"^labels/name/(?P<key_name>[\w\-]+)/values/?$",
+        LabelsViewSet.as_view({"post": "add_value_by_key_name"}),
+        name="add-value-by-key-name",
     ),
     re_path(
         r"^labels/id/(?P<key_id>[\w\-]+)/values/?$", LabelsViewSet.as_view({"post": "add_value"}), name="add_value"
@@ -154,6 +176,11 @@ urlpatterns += [
         r"^alertgroups/labels/id/(?P<key_id>.+/?$)",
         AlertGroupLabelsViewSet.as_view({"get": "get_key"}),
         name="alert_group_labels-get_key",
+    ),
+    re_path(
+        r"^alertgroups/labels/name/(?P<key_name>.+?)/?$",
+        AlertGroupLabelsViewSet.as_view({"get": "get_key_by_name"}),
+        name="alert_group_labels-get-key-by-name",
     ),
 ]
 

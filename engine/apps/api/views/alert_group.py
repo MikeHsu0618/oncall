@@ -19,14 +19,20 @@ from apps.alerts.paging import unpage_user
 from apps.alerts.tasks import delete_alert_group, send_update_resolution_note_signal
 from apps.alerts.utils import is_declare_incident_step_enabled
 from apps.api.errors import AlertGroupAPIError
+from apps.api.escalation_next import build_escalation_next_preview, escalate_next
 from apps.api.label_filtering import parse_label_query
 from apps.api.permissions import RBACPermission
-from apps.api.serializers.alert_group import AlertGroupListSerializer, AlertGroupSerializer
-from apps.api.serializers.alert_group_escalation_snapshot import AlertGroupEscalationSnapshotAPISerializer
+from apps.api.serializers.alert_group import AlertGroupLabelSerializer, AlertGroupListSerializer, AlertGroupSerializer
+from apps.api.serializers.alert_group_escalation_snapshot import (
+    AlertGroupEscalationSnapshotAPISerializer,
+    EscalationSnapshotNextPreviewSerializer,
+)
+from apps.api.serializers.labels import AlertGroupLabelManagementSerializer
 from apps.api.serializers.team import TeamSerializer
 from apps.auth_token.auth import PluginAuthentication
 from apps.base.models.user_notification_policy_log_record import UserNotificationPolicyLogRecord
 from apps.grafana_plugin.ui_url_builder import UIURLBuilder
+from apps.labels.models import AlertGroupAssociatedLabel
 from apps.labels.utils import is_labels_feature_enabled
 from apps.mobile_app.auth import MobileAppAuthTokenAuthentication
 from apps.user_management.models import Team, User
@@ -285,6 +291,10 @@ class AlertGroupView(
         "preview_template": [RBACPermission.Permissions.INTEGRATIONS_TEST],
         "escalation_snapshot": [RBACPermission.Permissions.ALERT_GROUPS_READ],
         "filter_affected_services": [RBACPermission.Permissions.ALERT_GROUPS_READ],
+        "labels": [RBACPermission.Permissions.ALERT_GROUPS_WRITE],
+        "remove_label": [RBACPermission.Permissions.ALERT_GROUPS_WRITE],
+        "escalate_next_preview": [RBACPermission.Permissions.ALERT_GROUPS_READ],
+        "escalate_next": [RBACPermission.Permissions.ALERT_GROUPS_WRITE],
     }
 
     queryset = AlertGroup.objects.none()  # needed for drf-spectacular introspection
@@ -369,6 +379,52 @@ class AlertGroupView(
         obj = super().get_object()
         obj = self.enrich([obj])[0]
         return obj
+
+    @extend_schema(request=AlertGroupLabelManagementSerializer, responses=AlertGroupLabelSerializer)
+    @action(methods=["post"], detail=True, url_path="labels")
+    def labels(self, request, pk=None):
+        """Add a name-based label to an alert group."""
+        alert_group = self.get_object()
+        serializer = AlertGroupLabelManagementSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        label, _ = AlertGroupAssociatedLabel.objects.get_or_create(
+            alert_group=alert_group,
+            organization=self.request.auth.organization,
+            key_name=serializer.validated_data["key"]["name"],
+            value_name=serializer.validated_data["value"]["name"],
+        )
+        return Response(AlertGroupLabelSerializer(label).data)
+
+    @extend_schema(request=AlertGroupLabelManagementSerializer, responses={status.HTTP_204_NO_CONTENT: None})
+    @action(methods=["post"], detail=True, url_path="labels/remove")
+    def remove_label(self, request, pk=None):
+        """Remove a name-based label from an alert group."""
+        alert_group = self.get_object()
+        serializer = AlertGroupLabelManagementSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        AlertGroupAssociatedLabel.objects.filter(
+            alert_group=alert_group,
+            organization=self.request.auth.organization,
+            key_name=serializer.validated_data["key"]["name"],
+            value_name=serializer.validated_data["value"]["name"],
+        ).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(responses=EscalationSnapshotNextPreviewSerializer)
+    @action(methods=["get"], detail=True, url_path="escalate_next_preview")
+    def escalate_next_preview(self, request, pk=None):
+        preview = build_escalation_next_preview(self.get_object())
+        return Response(EscalationSnapshotNextPreviewSerializer(preview).data)
+
+    @extend_schema(request=None, responses={status.HTTP_204_NO_CONTENT: None})
+    @action(methods=["post"], detail=True, url_path="escalate_next")
+    def escalate_next(self, request, pk=None):
+        alert_group = self.get_object()
+        try:
+            escalate_next(alert_group, request.user)
+        except ValueError as exc:
+            raise BadRequest(detail=str(exc))
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def retrieve(self, request, *args, **kwargs):
         """Return alert group details.

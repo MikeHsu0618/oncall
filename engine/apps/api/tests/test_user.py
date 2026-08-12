@@ -340,9 +340,11 @@ def test_list_users_filtered_by_granted_permission(
         # make_user_for_organization fixture will only grant the oncall flavour of the permission
         permissions=permissions.GrafanaAPIPermissions.construct_permissions(
             [
-                permissions.convert_oncall_permission_to_irm(admin_perm_required_to_call_endpoint)
-                if is_grafana_irm_enabled
-                else admin_perm_required_to_call_endpoint.value
+                (
+                    permissions.convert_oncall_permission_to_irm(admin_perm_required_to_call_endpoint)
+                    if is_grafana_irm_enabled
+                    else admin_perm_required_to_call_endpoint.value
+                )
             ]
         ),
     )
@@ -1034,6 +1036,96 @@ def test_admin_can_verify_another_user_phone(
 
     response = client.put(f"{url}?token=12345", format="json", **make_user_auth_headers(second_user, token))
     assert response.status_code == status.HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_admin_can_manually_verify_another_user_phone(
+    make_organization_and_user_with_plugin_token,
+    make_user_for_organization,
+    make_user_auth_headers,
+):
+    organization, target_user, token = make_organization_and_user_with_plugin_token()
+    target_user.unverified_phone_number = "+1234567890"
+    target_user.save(update_fields=["unverified_phone_number"])
+    admin = make_user_for_organization(organization, role=permissions.LegacyAccessControlRole.ADMIN)
+
+    client = APIClient()
+    url = reverse("api-internal:user-manually-verify-number", kwargs={"pk": target_user.public_primary_key})
+
+    with patch("apps.api.views.user.write_resource_insight_log") as mock_insight_log:
+        response = client.post(url, format="json", **make_user_auth_headers(admin, token))
+
+    assert response.status_code == status.HTTP_200_OK
+    target_user.refresh_from_db()
+    assert target_user.verified_phone_number == "+1234567890"
+    mock_insight_log.assert_called_once()
+    assert mock_insight_log.call_args.kwargs["instance"] == target_user
+    assert mock_insight_log.call_args.kwargs["author"] == admin
+
+
+@pytest.mark.django_db
+def test_manually_verify_phone_requires_an_unverified_number(
+    make_organization_and_user_with_plugin_token,
+    make_user_for_organization,
+    make_user_auth_headers,
+):
+    organization, target_user, token = make_organization_and_user_with_plugin_token()
+    admin = make_user_for_organization(organization, role=permissions.LegacyAccessControlRole.ADMIN)
+
+    client = APIClient()
+    url = reverse("api-internal:user-manually-verify-number", kwargs={"pk": target_user.public_primary_key})
+
+    response = client.post(url, format="json", **make_user_auth_headers(admin, token))
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json() == "User does not have a phone number pending verification"
+
+
+@pytest.mark.django_db
+def test_editor_cannot_manually_verify_phone(
+    make_organization_and_user_with_plugin_token,
+    make_user_for_organization,
+    make_user_auth_headers,
+):
+    organization, target_user, token = make_organization_and_user_with_plugin_token()
+    target_user.unverified_phone_number = "+1234567890"
+    target_user.save(update_fields=["unverified_phone_number"])
+    editor = make_user_for_organization(organization, role=permissions.LegacyAccessControlRole.EDITOR)
+
+    client = APIClient()
+    url = reverse("api-internal:user-manually-verify-number", kwargs={"pk": target_user.public_primary_key})
+
+    response = client.post(url, format="json", **make_user_auth_headers(editor, token))
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    target_user.refresh_from_db()
+    assert target_user.verified_phone_number is None
+
+
+@pytest.mark.django_db
+def test_admin_cannot_manually_verify_phone_across_organizations(
+    make_organization_and_user_with_plugin_token,
+    make_organization,
+    make_user_for_organization,
+    make_user_auth_headers,
+):
+    first_organization, admin, token = make_organization_and_user_with_plugin_token(
+        role=permissions.LegacyAccessControlRole.ADMIN
+    )
+    other_organization = make_organization()
+    target_user = make_user_for_organization(
+        other_organization,
+        unverified_phone_number="+1234567890",
+    )
+
+    client = APIClient()
+    url = reverse("api-internal:user-manually-verify-number", kwargs={"pk": target_user.public_primary_key})
+
+    response = client.post(url, format="json", **make_user_auth_headers(admin, token))
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    target_user.refresh_from_db()
+    assert target_user.verified_phone_number is None
 
 
 @pytest.mark.django_db

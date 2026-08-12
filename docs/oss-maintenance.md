@@ -34,7 +34,24 @@ Contract-specific behavior currently includes:
 - page-number responses for escalation-chain list calls, while preserving the
   unpaginated legacy list and `filters=true` response;
 - `is_user_allowed_to_update` on schedule resources, derived from existing
-  OnCall RBAC/legacy-role authorization rather than browser input.
+  OnCall RBAC/legacy-role authorization rather than browser input;
+- IRM alert list/detail contracts with organization, team, and RBAC isolation;
+- alert-group label mutations and label dropdown/name lookup contracts;
+- escalation-next preview and execution, which skips pending wait policies,
+  rotates OnCall's active Celery task ID, and then resumes the existing
+  escalation task state machine without delivering notifications in HTTP;
+- administrator-only manual verification of a pending phone number, with a
+  native resource insight-log record;
+- current-user mobile-device listing and disconnect, backed by the existing
+  FCM device table while deliberately omitting registration tokens;
+- parent-scoped outgoing-webhook response detail.
+
+The sibling IRM repository audits every recovered static REST route plus
+explicit expansions for its dynamic template/path callsites. The current
+0.114.0 audit classifies 204 unique routes: 190 in this engine, 8 in the
+Grafana Go bridge, and 6 intentionally Cloud-only. The six Cloud-only routes
+are Grafana-hosted LCR number provisioning and the hosted Microsoft Teams
+connector; there are no unclassified routes.
 
 Compatibility belongs in the engine when it represents real OnCall state or
 authorization. The Grafana Go bridge retains fallbacks so the same IRM plugin
@@ -48,7 +65,7 @@ Build the maintained engine from the repository root:
 
 ```sh
 docker build --target prod \
-  -t mikehsu0618/grafana-oncall:1.16.11-oss.1 engine
+  -t mikehsu0618/grafana-oncall:1.16.11-oss.2 engine
 ```
 
 Run the focused contract and regression suite with a development image that
@@ -62,9 +79,7 @@ docker run --rm \
   -v "$PWD/grafana-plugin:/etc/grafana-plugin:ro" \
   -w /etc/app \
   mikehsu0618/grafana-oncall:1.16.11-oss.1-dev \
-  pytest --ds=settings.ci_test \
-  apps/api/tests/test_escalation_chain.py \
-  apps/api/tests/test_schedules.py -q
+  pytest --ds=settings.ci_test apps/api/tests -q
 ```
 
 The sibling `grafana-irm-app` repository provides the integrated clean-Grafana

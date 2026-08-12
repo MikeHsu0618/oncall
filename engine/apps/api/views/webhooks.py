@@ -86,6 +86,7 @@ class WebhooksView(TeamFilteringMixin, PublicPrimaryKeyMixin[Webhook], ModelView
         "partial_update": [RBACPermission.Permissions.OUTGOING_WEBHOOKS_WRITE],
         "destroy": [RBACPermission.Permissions.OUTGOING_WEBHOOKS_WRITE],
         "responses": [RBACPermission.Permissions.OUTGOING_WEBHOOKS_READ],
+        "response_detail": [RBACPermission.Permissions.OUTGOING_WEBHOOKS_READ],
         "preview_template": [RBACPermission.Permissions.OUTGOING_WEBHOOKS_WRITE],
         "preset_options": [RBACPermission.Permissions.OUTGOING_WEBHOOKS_READ],
         "trigger_manual": [RBACPermission.Permissions.OUTGOING_WEBHOOKS_READ],
@@ -228,6 +229,21 @@ class WebhooksView(TeamFilteringMixin, PublicPrimaryKeyMixin[Webhook], ModelView
         )[:RECENT_RESPONSE_LIMIT]
         response_serializer = WebhookResponseSerializer(queryset, many=True)
         return Response(response_serializer.data)
+
+    @extend_schema(responses=WebhookResponseSerializer)
+    @action(methods=["get"], detail=True, url_path=r"responses/(?P<response_pk>[^/.]+)", url_name="response-detail")
+    def response_detail(self, request, pk, response_pk):
+        """Return one response, scoped through its parent webhook."""
+        webhook = self.get_object()
+        try:
+            webhook_response = WebhookResponse.objects.get(
+                pk=response_pk,
+                webhook_id=webhook.id,
+                trigger_type=webhook.trigger_type,
+            )
+        except (WebhookResponse.DoesNotExist, ValueError):
+            raise NotFound
+        return Response(WebhookResponseSerializer(webhook_response).data)
 
     @extend_schema(
         request=inline_serializer(

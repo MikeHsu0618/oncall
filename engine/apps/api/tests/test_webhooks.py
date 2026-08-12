@@ -665,6 +665,54 @@ def test_get_webhook_responses(
 
 
 @pytest.mark.django_db
+def test_get_single_webhook_response_is_scoped_to_parent_webhook(
+    make_organization_and_user_with_plugin_token,
+    make_team,
+    make_user_auth_headers,
+    make_custom_webhook,
+    make_webhook_response,
+):
+    organization, user, token = make_organization_and_user_with_plugin_token()
+    team = make_team(organization)
+    webhook = make_custom_webhook(
+        organization=organization, team=team, trigger_type=Webhook.TRIGGER_ALERT_GROUP_CREATED
+    )
+    other_webhook = make_custom_webhook(
+        organization=organization, team=team, trigger_type=Webhook.TRIGGER_ALERT_GROUP_CREATED
+    )
+    webhook_response = make_webhook_response(
+        webhook=webhook,
+        trigger_type=webhook.trigger_type,
+        status_code=202,
+        content='{"accepted": true}',
+    )
+    other_response = make_webhook_response(
+        webhook=other_webhook,
+        trigger_type=other_webhook.trigger_type,
+        status_code=200,
+        content='{"wrong": true}',
+    )
+    headers = make_user_auth_headers(user, token)
+    client = APIClient()
+
+    url = reverse(
+        "api-internal:webhooks-response-detail",
+        kwargs={"pk": webhook.public_primary_key, "response_pk": webhook_response.pk},
+    )
+    response = client.get(url, format="json", **headers)
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["status_code"] == 202
+    assert response.json()["content"] == '{"accepted": true}'
+
+    wrong_parent_url = reverse(
+        "api-internal:webhooks-response-detail",
+        kwargs={"pk": webhook.public_primary_key, "response_pk": other_response.pk},
+    )
+    wrong_parent_response = client.get(wrong_parent_url, format="json", **headers)
+    assert wrong_parent_response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "test_template, test_payload, expected_result",
     [

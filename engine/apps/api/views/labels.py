@@ -12,6 +12,7 @@ from apps.api.serializers.labels import (
     LabelKeySerializer,
     LabelOptionSerializer,
     LabelReprSerializer,
+    LabelsDropdownContextSerializer,
     LabelValueSerializer,
 )
 from apps.auth_token.auth import PluginAuthentication
@@ -47,6 +48,8 @@ class LabelsViewSet(LabelsFeatureFlagViewSet):
         "get_key": [RBACPermission.Permissions.LABEL_READ],
         "get_key_by_name": [RBACPermission.Permissions.LABEL_READ],
         "get_value": [RBACPermission.Permissions.LABEL_READ],
+        "dropdown_context": [RBACPermission.Permissions.LABEL_READ],
+        "add_value_by_key_name": [RBACPermission.Permissions.LABEL_WRITE],
     }
 
     @extend_schema(responses=LabelKeySerializer(many=True))
@@ -88,6 +91,37 @@ class LabelsViewSet(LabelsFeatureFlagViewSet):
         # TODO: update_labels_cache expects LabelOption, but get value returns a Value. Investigate, temporary disable.
         # self._update_labels_cache(value)
         return Response(value, status=response.status_code)
+
+    @extend_schema(responses=LabelsDropdownContextSerializer)
+    def dropdown_context(self, request):
+        """Return the label options needed by the IRM labels dropdown."""
+        organization = self.request.auth.organization
+        client = LabelsAPIClient(organization.grafana_url, organization.api_token)
+        keys, response = client.get_keys()
+        if response.status_code != 200:
+            return Response({"label_options": [], "archived": []}, status=response.status_code)
+
+        label_options = []
+        for key in keys or []:
+            label_option, option_response = client.get_label_by_key_id(key["id"])
+            if option_response.status_code == 200 and label_option:
+                label_options.append(label_option)
+        return Response({"label_options": label_options, "archived": []})
+
+    @extend_schema(request=LabelReprSerializer, responses=LabelOptionSerializer)
+    def add_value_by_key_name(self, request, key_name):
+        """Create a label value after resolving the stable key name to its ID."""
+        organization = self.request.auth.organization
+        serializer = LabelReprSerializer(data=self.request.data)
+        serializer.is_valid(raise_exception=True)
+        label_data = serializer.validated_data
+        client = LabelsAPIClient(organization.grafana_url, organization.api_token)
+        label_option, _ = client.get_label_by_key_name(key_name)
+        if not label_option or not label_option.get("key", {}).get("id"):
+            raise NotFound
+        result, response = client.add_value(label_option["key"]["id"], label_data)
+        self._update_labels_cache(result)
+        return Response(result, status=response.status_code)
 
     @extend_schema(request=LabelReprSerializer, responses=LabelOptionSerializer)
     def rename_key(self, request, key_id):
@@ -179,6 +213,7 @@ class AlertGroupLabelsViewSet(LabelsFeatureFlagViewSet):
     rbac_permissions = {
         "get_keys": [RBACPermission.Permissions.ALERT_GROUPS_READ],
         "get_key": [RBACPermission.Permissions.ALERT_GROUPS_READ],
+        "get_key_by_name": [RBACPermission.Permissions.ALERT_GROUPS_READ],
     }
 
     @extend_schema(responses=LabelKeySerializer(many=True))
@@ -201,6 +236,10 @@ class AlertGroupLabelsViewSet(LabelsFeatureFlagViewSet):
         return Response(
             {"key": {"id": key_id, "name": key_id}, "values": [{"id": value, "name": value} for value in values]}
         )
+
+    @extend_schema(responses=LabelOptionSerializer)
+    def get_key_by_name(self, request, key_name):
+        return self.get_key(request, key_name)
 
 
 def schedule_update_label_cache(model_name, org, ids):

@@ -1,6 +1,12 @@
 from rest_framework import serializers
 
-from apps.labels.models import AssociatedLabel, LabelKeyCache, LabelValueCache
+from apps.labels.models import (
+    MAX_KEY_NAME_LENGTH,
+    MAX_VALUE_NAME_LENGTH,
+    AssociatedLabel,
+    LabelKeyCache,
+    LabelValueCache,
+)
 from apps.labels.utils import is_labels_feature_enabled
 
 
@@ -35,9 +41,36 @@ class LabelPairSerializer(serializers.Serializer):
     value = LabelValueSerializer()
 
 
+class AlertGroupLabelManagementSerializer(serializers.Serializer):
+    """Name-based label pair used by IRM alert-group label mutations."""
+
+    class LabelNameSerializer(serializers.Serializer):
+        name = serializers.CharField()
+
+    key = LabelNameSerializer()
+    value = LabelNameSerializer()
+
+    def validate(self, attrs):
+        if len(attrs["key"]["name"]) > MAX_KEY_NAME_LENGTH:
+            raise serializers.ValidationError({"key": {"name": "Label key is too long."}})
+        if len(attrs["value"]["name"]) > MAX_VALUE_NAME_LENGTH:
+            raise serializers.ValidationError({"value": {"name": "Label value is too long."}})
+        return attrs
+
+
 class LabelOptionSerializer(serializers.Serializer):
     key = LabelKeySerializer()
     values = LabelValueSerializer(many=True)
+
+
+class ArchivedLabelPairSerializer(serializers.Serializer):
+    key = serializers.CharField()
+    value = serializers.CharField()
+
+
+class LabelsDropdownContextSerializer(serializers.Serializer):
+    label_options = LabelOptionSerializer(many=True)
+    archived = ArchivedLabelPairSerializer(many=True)
 
 
 class LabelReprSerializer(serializers.Serializer):

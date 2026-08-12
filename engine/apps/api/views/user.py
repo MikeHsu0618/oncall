@@ -119,9 +119,9 @@ class CachedSchedulesContextMixin:
         context = getattr(super(), "get_serializer_context", lambda: {})()
         context.update(
             {
-                "schedules_with_oncall_users": self.schedules_with_oncall_users
-                if self._populate_schedules_oncall_cache()
-                else {}
+                "schedules_with_oncall_users": (
+                    self.schedules_with_oncall_users if self._populate_schedules_oncall_cache() else {}
+                )
             }
         )
         return context
@@ -221,6 +221,7 @@ class UserView(
         "update": [RBACPermission.Permissions.USER_SETTINGS_WRITE],
         "partial_update": [RBACPermission.Permissions.USER_SETTINGS_WRITE],
         "verify_number": [RBACPermission.Permissions.USER_SETTINGS_WRITE],
+        "manually_verify_number": [RBACPermission.Permissions.USER_SETTINGS_ADMIN],
         "forget_number": [RBACPermission.Permissions.USER_SETTINGS_WRITE],
         "get_verification_code": [RBACPermission.Permissions.USER_SETTINGS_WRITE],
         "get_verification_call": [RBACPermission.Permissions.USER_SETTINGS_WRITE],
@@ -245,6 +246,7 @@ class UserView(
             "partial_update",
             "destroy",
             "verify_number",
+            "manually_verify_number",
             "forget_number",
             "get_verification_code",
             "get_verification_call",
@@ -548,6 +550,27 @@ class UserView(
             return Response(status=status.HTTP_200_OK)
         else:
             return Response("Verification code is not correct", status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(request=None, responses={status.HTTP_200_OK: None})
+    @action(detail=True, methods=["post"])
+    def manually_verify_number(self, request, pk) -> Response:
+        target_user = self.get_object()
+        if not target_user.unverified_phone_number:
+            return Response(
+                "User does not have a phone number pending verification",
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        prev_state = target_user.insight_logs_serialized
+        target_user.save_verified_phone_number(target_user.unverified_phone_number)
+        write_resource_insight_log(
+            instance=target_user,
+            author=request.user,
+            event=EntityEvent.UPDATED,
+            prev_state=prev_state,
+            new_state=target_user.insight_logs_serialized,
+        )
+        return Response(status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["put"])
     def forget_number(self, request, pk) -> Response:
