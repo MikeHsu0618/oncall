@@ -46,6 +46,18 @@ Contract-specific behavior currently includes:
   FCM device table while deliberately omitting registration tokens;
 - parent-scoped outgoing-webhook response detail.
 
+The maintained exporter also restores the application-metric contract promised
+by the archived OnCall documentation but absent from the final OSS source:
+
+- `oncall_alert_groups_resolution_time_seconds_{bucket,sum,count}` uses
+  `resolved_at - started_at` for alert groups resolved in the rolling seven-day
+  window;
+- it keeps the same integration, team, stack, and `service_name` labels as the
+  response-time histogram;
+- resolve updates the cache immediately, while reopen/restart removes the old
+  sample by alert-group ID; the daily calculation rebuilds the cache from the
+  database as the durability backstop.
+
 The sibling IRM repository audits every recovered static REST route plus
 explicit expansions for its dynamic template/path callsites. The current
 0.114.0 audit classifies 204 unique routes: 190 in this engine, 8 in the
@@ -80,6 +92,19 @@ docker run --rm \
   -w /etc/app \
   mikehsu0618/grafana-oncall:1.16.11-oss.1-dev \
   pytest --ds=settings.ci_test apps/api/tests -q
+```
+
+The focused exporter regression suite is:
+
+```sh
+docker run --rm \
+  -e DJANGO_SETTINGS_MODULE=settings.ci_test \
+  -e DATABASE_TYPE=sqlite3 \
+  -e DATABASE_NAME=/tmp/oncall-test.db \
+  -v "$PWD/engine:/etc/app" \
+  -v "$PWD/grafana-plugin:/etc/grafana-plugin:ro" \
+  grafana-oncall-tests:oss-maintenance \
+  pytest -q apps/metrics_exporter/tests
 ```
 
 The sibling `grafana-irm-app` repository provides the integrated clean-Grafana

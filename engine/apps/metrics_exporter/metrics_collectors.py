@@ -9,16 +9,19 @@ from prometheus_client.metrics_core import CounterMetricFamily, GaugeMetricFamil
 
 from apps.alerts.constants import AlertGroupState
 from apps.metrics_exporter.constants import (
+    ALERT_GROUPS_RESOLUTION_TIME,
     ALERT_GROUPS_RESPONSE_TIME,
     ALERT_GROUPS_TOTAL,
     SERVICE_LABEL,
     USER_WAS_NOTIFIED_OF_ALERT_GROUPS,
+    AlertGroupsResolutionTimeMetricsDict,
     AlertGroupsResponseTimeMetricsDict,
     AlertGroupsTotalMetricsDict,
     RecalculateOrgMetricsDict,
     UserWasNotifiedOfAlertGroupsMetricsDict,
 )
 from apps.metrics_exporter.helpers import (
+    get_metric_alert_groups_resolution_time_key,
     get_metric_alert_groups_response_time_key,
     get_metric_alert_groups_total_key,
     get_metric_calculation_started_key,
@@ -28,6 +31,7 @@ from apps.metrics_exporter.helpers import (
 )
 from apps.metrics_exporter.tasks import start_calculate_and_cache_metrics, start_recalculation_for_new_metric
 from settings.base import (
+    METRIC_ALERT_GROUPS_RESOLUTION_TIME_NAME,
     METRIC_ALERT_GROUPS_RESPONSE_TIME_NAME,
     METRIC_ALERT_GROUPS_TOTAL_NAME,
     METRIC_USER_WAS_NOTIFIED_OF_ALERT_GROUPS_NAME,
@@ -43,6 +47,7 @@ _RE_BASE_PATTERN = r"{{?{}}}?_(\d+)"
 
 RE_ALERT_GROUPS_TOTAL = re.compile(_RE_BASE_PATTERN.format(ALERT_GROUPS_TOTAL))
 RE_ALERT_GROUPS_RESPONSE_TIME = re.compile(_RE_BASE_PATTERN.format(ALERT_GROUPS_RESPONSE_TIME))
+RE_ALERT_GROUPS_RESOLUTION_TIME = re.compile(_RE_BASE_PATTERN.format(ALERT_GROUPS_RESOLUTION_TIME))
 RE_USER_WAS_NOTIFIED_OF_ALERT_GROUPS = re.compile(_RE_BASE_PATTERN.format(USER_WAS_NOTIFIED_OF_ALERT_GROUPS))
 
 
@@ -75,6 +80,7 @@ class ApplicationMetricsCollector:
         metrics_map: typing.Dict[str, ApplicationMetricsCollector.GetMetricFunc] = {
             METRIC_ALERT_GROUPS_TOTAL_NAME: self._get_alert_groups_total_metric,
             METRIC_ALERT_GROUPS_RESPONSE_TIME_NAME: self._get_response_time_metric,
+            METRIC_ALERT_GROUPS_RESOLUTION_TIME_NAME: self._get_resolution_time_metric,
             METRIC_USER_WAS_NOTIFIED_OF_ALERT_GROUPS_NAME: self._get_user_was_notified_of_alert_groups_metric,
         }
         org_ids = set(get_organization_ids())
@@ -173,6 +179,35 @@ class ApplicationMetricsCollector:
         missing_org_ids = org_ids - processed_org_ids
         return alert_groups_response_time_seconds, missing_org_ids
 
+    def _get_resolution_time_metric(self, org_ids: set[int]) -> typing.Tuple[Metric, set[int]]:
+        alert_groups_resolution_time_seconds = HistogramMetricFamily(
+            ALERT_GROUPS_RESOLUTION_TIME,
+            "Alert group resolution time in 7 days (seconds)",
+            labels=self._integration_labels,
+        )
+        processed_org_ids = set()
+        keys = [get_metric_alert_groups_resolution_time_key(org_id) for org_id in org_ids]
+        cached_metrics: typing.Dict[str, typing.Dict[int, AlertGroupsResolutionTimeMetricsDict]] = cache.get_many(keys)
+        for org_key, resolution_times in cached_metrics.items():
+            for _, integration_data in resolution_times.items():
+                if "services" not in integration_data:
+                    logger.warning(f"Deleting stale metrics cache for {org_key}")
+                    cache.delete(org_key)
+                    break
+                labels_values = self._get_labels_from_integration_data(integration_data)
+                for service_name, resolution_time in integration_data["services"].items():
+                    if not resolution_time:
+                        continue
+                    buckets_values, sum_value = self._get_buckets_with_sum(list(resolution_time.values()))
+                    buckets = sorted(list(buckets_values.items()), key=lambda x: float(x[0]))
+                    alert_groups_resolution_time_seconds.add_metric(
+                        labels_values + [service_name], buckets=buckets, sum_value=sum_value
+                    )
+            org_id_from_key = RE_ALERT_GROUPS_RESOLUTION_TIME.match(org_key).groups()[0]
+            processed_org_ids.add(int(org_id_from_key))
+        missing_org_ids = org_ids - processed_org_ids
+        return alert_groups_resolution_time_seconds, missing_org_ids
+
     def _get_buckets_with_sum(self, values: typing.List[int]) -> typing.Tuple[typing.Dict[str, float], int]:
         """Put values in correct buckets and count values sum"""
         buckets_values = {str(key): 0 for key in self._buckets}
@@ -185,7 +220,10 @@ class ApplicationMetricsCollector:
         return buckets_values, sum_value
 
     def _get_labels_from_integration_data(
-        self, integration_data: AlertGroupsTotalMetricsDict | AlertGroupsResponseTimeMetricsDict
+        self,
+        integration_data: (
+            AlertGroupsTotalMetricsDict | AlertGroupsResponseTimeMetricsDict | AlertGroupsResolutionTimeMetricsDict
+        ),
     ) -> typing.List[str]:
         # Labels values should have the same order as _integration_labels_with_state
         labels_values = [

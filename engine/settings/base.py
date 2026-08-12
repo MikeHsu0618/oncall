@@ -113,10 +113,12 @@ PROMETHEUS_EXPORTER_SECRET = os.environ.get("PROMETHEUS_EXPORTER_SECRET")
 # Application metric names without prefixes
 METRIC_ALERT_GROUPS_TOTAL_NAME = "alert_groups_total"
 METRIC_ALERT_GROUPS_RESPONSE_TIME_NAME = "alert_groups_response_time"
+METRIC_ALERT_GROUPS_RESOLUTION_TIME_NAME = "alert_groups_resolution_time"
 METRIC_USER_WAS_NOTIFIED_OF_ALERT_GROUPS_NAME = "user_was_notified_of_alert_groups"
 METRICS_ALL = [
     METRIC_ALERT_GROUPS_TOTAL_NAME,
     METRIC_ALERT_GROUPS_RESPONSE_TIME_NAME,
+    METRIC_ALERT_GROUPS_RESOLUTION_TIME_NAME,
     METRIC_USER_WAS_NOTIFIED_OF_ALERT_GROUPS_NAME,
 ]
 # List of metrics to collect. Collect all available application metrics by default

@@ -3,6 +3,7 @@ import typing
 from apps.alerts.constants import AlertGroupState
 from apps.metrics_exporter.helpers import (
     get_response_time_period,
+    metrics_update_alert_group_resolution_time_cache,
     metrics_update_alert_groups_response_time_cache,
     metrics_update_alert_groups_state_cache,
 )
@@ -77,12 +78,27 @@ class MetricsCacheManager:
         metrics_update_alert_groups_response_time_cache(metrics_response_time, organization_id)
 
     @staticmethod
+    def metrics_update_resolution_time_cache_for_alert_group(
+        integration_id, organization_id, alert_group_id, resolution_time_seconds, service_name
+    ):
+        """Upsert or remove resolution time metric cache for one alert group."""
+        metrics_update_alert_group_resolution_time_cache(
+            integration_id,
+            organization_id,
+            alert_group_id,
+            service_name,
+            resolution_time_seconds,
+        )
+
+    @staticmethod
     def metrics_update_cache_for_alert_group(
         integration_id,
         organization_id,
+        alert_group_id=None,
         old_state=None,
         new_state=None,
         response_time=None,
+        resolution_time=None,
         started_at=None,
         service_name=None,
     ):
@@ -92,6 +108,15 @@ class MetricsCacheManager:
             response_time_seconds = int(response_time.total_seconds())
             MetricsCacheManager.metrics_update_response_time_cache_for_alert_group(
                 integration_id, organization_id, response_time_seconds, service_name
+            )
+        if (
+            alert_group_id
+            and (new_state == AlertGroupState.RESOLVED or old_state == AlertGroupState.RESOLVED)
+            and started_at > get_response_time_period()
+        ):
+            resolution_time_seconds = int(resolution_time.total_seconds()) if resolution_time else None
+            MetricsCacheManager.metrics_update_resolution_time_cache_for_alert_group(
+                integration_id, organization_id, alert_group_id, resolution_time_seconds, service_name
             )
         if old_state or new_state:
             MetricsCacheManager.metrics_update_state_cache_for_alert_group(

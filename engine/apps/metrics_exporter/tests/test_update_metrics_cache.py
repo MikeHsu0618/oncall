@@ -4,12 +4,14 @@ import pytest
 from django.core.cache import cache
 from django.test import override_settings
 
+from apps.alerts.constants import AlertGroupState
 from apps.alerts.signals import alert_group_created_signal
 from apps.alerts.tasks import notify_user_task
 from apps.alerts.tasks.notify_user import update_metric_if_needed
 from apps.base.models import UserNotificationPolicy, UserNotificationPolicyLogRecord
 from apps.metrics_exporter.constants import NO_SERVICE_VALUE, SERVICE_LABEL
 from apps.metrics_exporter.helpers import (
+    get_metric_alert_groups_resolution_time_key,
     get_metric_alert_groups_response_time_key,
     get_metric_alert_groups_total_key,
     get_metric_user_was_notified_of_alert_groups_key,
@@ -17,6 +19,7 @@ from apps.metrics_exporter.helpers import (
     metrics_bulk_update_team_label_cache,
 )
 from apps.metrics_exporter.metrics_cache_manager import MetricsCacheManager
+from apps.metrics_exporter.tasks import update_metrics_for_alert_group
 from apps.metrics_exporter.tests.conftest import (
     METRICS_TEST_INSTANCE_ID,
     METRICS_TEST_INSTANCE_SLUG,
@@ -287,6 +290,44 @@ def test_update_metric_alert_groups_response_time_cache_on_action(
         assert_cache_was_not_changed_by_response_time_metric()
         alert_group_with_service.acknowledge_by_user_or_backsync(user)
         get_called_arg_index_and_compare_results(METRICS_TEST_SERVICE_NAME)
+
+
+@pytest.mark.django_db
+def test_resolution_time_cache_tracks_resolve_and_unresolve(
+    make_organization,
+    make_alert_receive_channel,
+    make_alert_group,
+    make_alert,
+    make_metrics_cache_params,
+    monkeypatch,
+):
+    organization = make_organization(
+        org_id=METRICS_TEST_ORG_ID,
+        stack_slug=METRICS_TEST_INSTANCE_SLUG,
+        stack_id=METRICS_TEST_INSTANCE_ID,
+    )
+    integration = make_alert_receive_channel(organization, verbal_name=METRICS_TEST_INTEGRATION_NAME)
+    alert_group = make_alert_group(integration)
+    make_alert(alert_group=alert_group, raw_request_data={})
+    metrics_cache = make_metrics_cache_params(integration.id, organization.id)
+    monkeypatch.setattr(cache, "get", metrics_cache)
+
+    with patch("apps.metrics_exporter.tasks.cache.set") as mock_cache_set:
+        alert_group.resolve()
+        update_metrics_for_alert_group(
+            alert_group.id, organization.id, AlertGroupState.FIRING, AlertGroupState.RESOLVED
+        )
+        metric_key = get_metric_alert_groups_resolution_time_key(organization.id)
+        resolved_cache = next(call.args[1] for call in mock_cache_set.call_args_list if call.args[0] == metric_key)
+        assert list(resolved_cache[integration.id]["services"][NO_SERVICE_VALUE]) == [alert_group.id]
+
+        mock_cache_set.reset_mock()
+        alert_group.unresolve()
+        update_metrics_for_alert_group(
+            alert_group.id, organization.id, AlertGroupState.RESOLVED, AlertGroupState.FIRING
+        )
+        reopened_cache = next(call.args[1] for call in mock_cache_set.call_args_list if call.args[0] == metric_key)
+        assert reopened_cache[integration.id]["services"][NO_SERVICE_VALUE] == {}
 
 
 @pytest.mark.django_db

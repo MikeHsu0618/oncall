@@ -2,12 +2,14 @@ import pytest
 from django.core.cache import cache
 
 from apps.metrics_exporter.constants import (
+    ALERT_GROUPS_RESOLUTION_TIME,
     ALERT_GROUPS_RESPONSE_TIME,
     ALERT_GROUPS_TOTAL,
     NO_SERVICE_VALUE,
     USER_WAS_NOTIFIED_OF_ALERT_GROUPS,
 )
 from apps.metrics_exporter.helpers import (
+    get_metric_alert_groups_resolution_time_key,
     get_metric_alert_groups_response_time_key,
     get_metric_alert_groups_total_key,
     get_metric_user_was_notified_of_alert_groups_key,
@@ -26,6 +28,8 @@ def mock_cache_get_metrics_for_collector(monkeypatch):
     def _mock_cache_get(key, *args, **kwargs):
         if ALERT_GROUPS_TOTAL in key:
             key = ALERT_GROUPS_TOTAL
+        elif ALERT_GROUPS_RESOLUTION_TIME in key:
+            key = ALERT_GROUPS_RESOLUTION_TIME
         elif ALERT_GROUPS_RESPONSE_TIME in key:
             key = ALERT_GROUPS_RESPONSE_TIME
         elif USER_WAS_NOTIFIED_OF_ALERT_GROUPS in key:
@@ -92,6 +96,29 @@ def mock_cache_get_metrics_for_collector(monkeypatch):
                         # if there are no response times available, this integration will be ignored
                         NO_SERVICE_VALUE: [],
                     },
+                },
+            },
+            ALERT_GROUPS_RESOLUTION_TIME: {
+                1: {
+                    "integration_name": "Test metrics integration",
+                    "team_name": "Test team",
+                    "team_id": 1,
+                    "org_id": 1,
+                    "slug": "Test stack",
+                    "id": 1,
+                    "services": {
+                        NO_SERVICE_VALUE: {1: 2, 2: 10, 3: 200, 4: 650},
+                        METRICS_TEST_SERVICE_NAME: {5: 4, 6: 12, 7: 20},
+                    },
+                },
+                2: {
+                    "integration_name": "Empty integration",
+                    "team_name": "Test team",
+                    "team_id": 1,
+                    "org_id": 1,
+                    "slug": "Test stack",
+                    "id": 2,
+                    "services": {NO_SERVICE_VALUE: {}},
                 },
             },
             USER_WAS_NOTIFIED_OF_ALERT_GROUPS: {
@@ -186,6 +213,7 @@ def make_metrics_cache_params(monkeypatch):
         team_id = team_id or "no_team"
         metric_alert_groups_total_key = get_metric_alert_groups_total_key(organization_id)
         metric_alert_groups_response_time_key = get_metric_alert_groups_response_time_key(organization_id)
+        metric_alert_groups_resolution_time_key = get_metric_alert_groups_resolution_time_key(organization_id)
 
         def cache_get(key, *args, **kwargs):
             metrics_data = {
@@ -200,6 +228,17 @@ def make_metrics_cache_params(monkeypatch):
                         "services": {
                             NO_SERVICE_VALUE: [],
                         },
+                    }
+                },
+                metric_alert_groups_resolution_time_key: {
+                    integration_id: {
+                        "integration_name": METRICS_TEST_INTEGRATION_NAME,
+                        "team_name": team_name,
+                        "team_id": team_id,
+                        "org_id": METRICS_TEST_ORG_ID,
+                        "slug": METRICS_TEST_INSTANCE_SLUG,
+                        "id": METRICS_TEST_INSTANCE_ID,
+                        "services": {NO_SERVICE_VALUE: {}},
                     }
                 },
                 metric_alert_groups_total_key: {

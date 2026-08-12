@@ -10,6 +10,7 @@ from apps.metrics_exporter.constants import (
     METRICS_ORGANIZATIONS_IDS_CACHE_TIMEOUT,
     NO_SERVICE_VALUE,
     SERVICE_LABEL,
+    AlertGroupsResolutionTimeMetricsDict,
     AlertGroupsResponseTimeMetricsDict,
     AlertGroupsTotalMetricsDict,
     RecalculateOrgMetricsDict,
@@ -17,6 +18,7 @@ from apps.metrics_exporter.constants import (
 )
 from apps.metrics_exporter.helpers import (
     get_default_states_dict,
+    get_metric_alert_groups_resolution_time_key,
     get_metric_alert_groups_response_time_key,
     get_metric_alert_groups_total_key,
     get_metric_calculation_started_key,
@@ -105,6 +107,7 @@ def calculate_and_cache_metrics(organization_id, force=False):
 
     metric_alert_group_total: typing.Dict[int, AlertGroupsTotalMetricsDict] = {}
     metric_alert_group_response_time: typing.Dict[int, AlertGroupsResponseTimeMetricsDict] = {}
+    metric_alert_group_resolution_time: typing.Dict[int, AlertGroupsResolutionTimeMetricsDict] = {}
 
     states = {
         AlertGroupState.FIRING.value: AlertGroup.get_new_state_filter(),
@@ -189,13 +192,52 @@ def calculate_and_cache_metrics(organization_id, force=False):
 
         metric_alert_group_response_time[integration.id] = metric_response_time_data
 
+        # calculate resolution time metric for currently resolved alert groups
+        metric_resolution_time_data = {
+            "integration_name": integration.emojized_verbal_name,
+            "team_name": integration.team_name,
+            "team_id": integration.team_id_or_no_team,
+            "org_id": instance_org_id,
+            "slug": instance_slug,
+            "id": instance_id,
+            "services": {NO_SERVICE_VALUE: {}},
+        }
+        resolution_time_by_service = integration.alert_groups.filter(
+            started_at__gte=response_time_period,
+            resolved_at__isnull=False,
+            labels__organization=organization,
+            labels__key_name=SERVICE_LABEL,
+        ).values_list("id", "labels__value_name", "started_at", "resolved_at")
+        for alert_group_id, service_name, started_at, resolved_at in resolution_time_by_service:
+            metric_resolution_time_data["services"].setdefault(service_name, {})[alert_group_id] = int(
+                (resolved_at - started_at).total_seconds()
+            )
+
+        no_service_resolution_time = (
+            integration.alert_groups.filter(
+                started_at__gte=response_time_period,
+                resolved_at__isnull=False,
+            )
+            .exclude(id__in=[i[0] for i in resolution_time_by_service])
+            .values_list("id", "started_at", "resolved_at")
+        )
+        metric_resolution_time_data["services"][NO_SERVICE_VALUE] = {
+            alert_group_id: int((resolved_at - started_at).total_seconds())
+            for alert_group_id, started_at, resolved_at in no_service_resolution_time
+        }
+        metric_alert_group_resolution_time[integration.id] = metric_resolution_time_data
+
     metric_alert_groups_total_key = get_metric_alert_groups_total_key(organization_id)
     metric_alert_groups_response_time_key = get_metric_alert_groups_response_time_key(organization_id)
+    metric_alert_groups_resolution_time_key = get_metric_alert_groups_resolution_time_key(organization_id)
 
     recalculate_timeout = get_metrics_recalculation_timeout()
     metrics_cache_timeout = recalculate_timeout + TWO_HOURS
     cache.set(metric_alert_groups_total_key, metric_alert_group_total, timeout=metrics_cache_timeout)
     cache.set(metric_alert_groups_response_time_key, metric_alert_group_response_time, timeout=metrics_cache_timeout)
+    cache.set(
+        metric_alert_groups_resolution_time_key, metric_alert_group_resolution_time, timeout=metrics_cache_timeout
+    )
     if force:
         metrics_cache_timer_key = get_metrics_cache_timer_key(organization_id)
         metrics_cache_timer = cache.get(metrics_cache_timer_key)
@@ -266,17 +308,22 @@ def update_metrics_for_alert_group(alert_group_id, organization_id, previous_sta
 
     alert_group = AlertGroup.objects.get(pk=alert_group_id)
     updated_response_time = alert_group.response_time
+    updated_resolution_time = None
     if previous_state != AlertGroupState.FIRING or alert_group.restarted_at:
         # only consider response time from the first action
         updated_response_time = None
+    if new_state == AlertGroupState.RESOLVED and alert_group.resolved_at:
+        updated_resolution_time = alert_group.resolved_at - alert_group.started_at
     service_label = alert_group.labels.filter(key_name=SERVICE_LABEL).first()
     service_name = service_label.value_name if service_label else NO_SERVICE_VALUE
     MetricsCacheManager.metrics_update_cache_for_alert_group(
         integration_id=alert_group.channel_id,
         organization_id=organization_id,
+        alert_group_id=alert_group.id,
         old_state=previous_state,
         new_state=new_state,
         response_time=updated_response_time,
+        resolution_time=updated_resolution_time,
         started_at=alert_group.started_at,
         service_name=service_name,
     )

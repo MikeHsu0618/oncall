@@ -7,6 +7,7 @@ from prometheus_client import CollectorRegistry, generate_latest
 
 from apps.alerts.constants import AlertGroupState
 from apps.metrics_exporter.constants import (
+    ALERT_GROUPS_RESOLUTION_TIME,
     ALERT_GROUPS_RESPONSE_TIME,
     ALERT_GROUPS_TOTAL,
     NO_SERVICE_VALUE,
@@ -16,10 +17,33 @@ from apps.metrics_exporter.helpers import get_metric_alert_groups_response_time_
 from apps.metrics_exporter.metrics_collectors import ApplicationMetricsCollector
 from apps.metrics_exporter.tests.conftest import METRICS_TEST_SERVICE_NAME
 from settings.base import (
+    METRIC_ALERT_GROUPS_RESOLUTION_TIME_NAME,
     METRIC_ALERT_GROUPS_RESPONSE_TIME_NAME,
     METRIC_ALERT_GROUPS_TOTAL_NAME,
     METRIC_USER_WAS_NOTIFIED_OF_ALERT_GROUPS_NAME,
 )
+
+
+@patch("apps.metrics_exporter.metrics_collectors.get_organization_ids", return_value=[1])
+@patch("apps.metrics_exporter.metrics_collectors.start_calculate_and_cache_metrics.apply_async")
+@pytest.mark.django_db
+def test_application_metrics_collector_exposes_resolution_time_histogram(
+    mocked_start_calculate_and_cache_metrics,
+    mocked_org_ids,
+    mock_cache_get_metrics_for_collector,
+    settings,
+):
+    settings.METRICS_TO_COLLECT = [METRIC_ALERT_GROUPS_RESOLUTION_TIME_NAME]
+    collector = ApplicationMetricsCollector()
+    test_metrics_registry = CollectorRegistry()
+    test_metrics_registry.register(collector)
+
+    metrics = list(test_metrics_registry.collect())
+
+    assert [metric.name for metric in metrics] == [ALERT_GROUPS_RESOLUTION_TIME]
+    assert {36, 862}.issubset({sample.value for sample in metrics[0].samples})
+    assert mocked_org_ids.called
+    test_metrics_registry.unregister(collector)
 
 
 # redis cluster usage modifies the cache keys for some operations, so we need to test both cases
@@ -128,7 +152,7 @@ def test_application_metrics_collector_with_old_metrics_without_services(
     test_metrics_registry = CollectorRegistry()
     test_metrics_registry.register(collector)
     metrics = [i for i in test_metrics_registry.collect()]
-    assert len(metrics) == 3
+    assert len(metrics) == 4
     for metric in metrics:
         if metric.name == ALERT_GROUPS_TOTAL:
             alert_groups_total_metrics_cache = cache.get(get_metric_alert_groups_total_key(org_id))
@@ -140,6 +164,8 @@ def test_application_metrics_collector_with_old_metrics_without_services(
                 alert_groups_response_time_metrics_cache
                 and "services" not in alert_groups_response_time_metrics_cache[1]
             )
+            assert len(metric.samples) == 0
+        elif metric.name == ALERT_GROUPS_RESOLUTION_TIME:
             assert len(metric.samples) == 0
         elif metric.name == USER_WAS_NOTIFIED_OF_ALERT_GROUPS:
             # metric with labels for each notified user

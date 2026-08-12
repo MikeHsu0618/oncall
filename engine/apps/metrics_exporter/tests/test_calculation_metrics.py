@@ -5,6 +5,7 @@ import pytest
 from apps.base.models import UserNotificationPolicyLogRecord
 from apps.metrics_exporter.constants import NO_SERVICE_VALUE, SERVICE_LABEL
 from apps.metrics_exporter.helpers import (
+    get_metric_alert_groups_resolution_time_key,
     get_metric_alert_groups_response_time_key,
     get_metric_alert_groups_total_key,
     get_metric_user_was_notified_of_alert_groups_key,
@@ -56,6 +57,7 @@ def test_calculate_and_cache_metrics_task(
 
     metric_alert_groups_total_key = get_metric_alert_groups_total_key(organization.id)
     metric_alert_groups_response_time_key = get_metric_alert_groups_response_time_key(organization.id)
+    metric_alert_groups_resolution_time_key = get_metric_alert_groups_resolution_time_key(organization.id)
 
     expected_result_metric_alert_groups_total = {
         alert_receive_channel_1.id: {
@@ -123,6 +125,26 @@ def test_calculate_and_cache_metrics_task(
             "services": {NO_SERVICE_VALUE: [], "test": []},
         },
     }
+    expected_result_metric_alert_groups_resolution_time = {
+        alert_receive_channel_1.id: {
+            "integration_name": alert_receive_channel_1.verbal_name,
+            "team_name": "No team",
+            "team_id": "no_team",
+            "org_id": organization.org_id,
+            "slug": organization.stack_slug,
+            "id": organization.stack_id,
+            "services": {NO_SERVICE_VALUE: {}},
+        },
+        alert_receive_channel_2.id: {
+            "integration_name": alert_receive_channel_2.verbal_name,
+            "team_name": team.name,
+            "team_id": team.id,
+            "org_id": organization.org_id,
+            "slug": organization.stack_slug,
+            "id": organization.stack_id,
+            "services": {NO_SERVICE_VALUE: {}},
+        },
+    }
 
     with patch("apps.metrics_exporter.tasks.cache.set") as mock_cache_set:
         calculate_and_cache_metrics(organization.id)
@@ -146,6 +168,16 @@ def test_calculate_and_cache_metrics_task(
                 "test"
             ]
         assert metric_alert_groups_response_time_values[1] == expected_result_metric_alert_groups_response_time
+
+        # check alert_groups_resolution_time metric cache
+        metric_alert_groups_resolution_time_values = args[2].args
+        assert metric_alert_groups_resolution_time_values[0] == metric_alert_groups_resolution_time_key
+        for integration_id, values in metric_alert_groups_resolution_time_values[1].items():
+            assert len(values["services"][NO_SERVICE_VALUE]) == 1
+            expected_result_metric_alert_groups_resolution_time[integration_id]["services"][NO_SERVICE_VALUE] = values[
+                "services"
+            ][NO_SERVICE_VALUE]
+        assert metric_alert_groups_resolution_time_values[1] == expected_result_metric_alert_groups_resolution_time
 
 
 @patch("apps.alerts.models.alert_group.update_metrics_for_alert_group.apply_async")
