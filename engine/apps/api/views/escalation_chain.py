@@ -31,6 +31,8 @@ from common.api_helpers.mixins import (
     PublicPrimaryKeyMixin,
     TeamFilteringMixin,
 )
+from common.api_helpers.paginators import IRMPageSizePaginator
+from common.constants.irm import IRM_API_CONTRACT_HEADER, IRM_API_CONTRACT_VERSION
 from common.insight_log import EntityEvent, write_resource_insight_log
 
 
@@ -88,6 +90,18 @@ class EscalationChainViewSet(
     list_serializer_class = EscalationChainListSerializer
 
     filter_serializer_class = FilterEscalationChainSerializer
+
+    def list(self, request, *args, **kwargs):
+        irm_contract = request.headers.get(IRM_API_CONTRACT_HEADER)
+        is_filter_options_request = request.query_params.get("filters", "false") == "true"
+        if irm_contract != IRM_API_CONTRACT_VERSION or is_filter_options_request:
+            return super().list(request, *args, **kwargs)
+
+        queryset = self.filter_queryset(self.get_queryset()).order_by("pk")
+        paginator = IRMPageSizePaginator()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        serializer = self.get_serializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     def get_queryset(self, ignore_filtering_by_available_teams=False):
         is_filters_request = self.request.query_params.get("filters", "false") == "true"

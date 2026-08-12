@@ -23,6 +23,13 @@ For users seeking a fully supported and actively maintained alternative,
 
 Developer-friendly incident response with brilliant Slack integration.
 
+> [!NOTE]
+> This maintenance checkout is based on the final formal OSS release
+> `v1.16.11` and adds an opt-in compatibility contract for the source-restored
+> Grafana IRM 0.114 frontend. See
+> [docs/oss-maintenance.md](docs/oss-maintenance.md) for branch policy,
+> architecture boundaries, build instructions, and regression tests.
+
 <!-- markdownlint-disable MD013 MD033 -->
 <table>
   <tbody>

@@ -12,6 +12,7 @@ from apps.schedules.tasks import (
 from common.api_helpers.custom_fields import TeamPrimaryKeyRelatedField
 from common.api_helpers.mixins import EagerLoadingMixin
 from common.api_helpers.utils import CurrentOrganizationDefault
+from common.constants.irm import IRM_API_CONTRACT_VERSION
 
 
 class ScheduleBaseSerializer(EagerLoadingMixin, serializers.ModelSerializer):
@@ -51,6 +52,12 @@ class ScheduleBaseSerializer(EagerLoadingMixin, serializers.ModelSerializer):
     )
     SCHEDULE_HAS_GAPS_WARNING = f"Schedule has unassigned time periods during next {SCHEDULE_CHECK_NEXT_DAYS} days"
     SCHEDULE_HAS_EMPTY_SHIFTS_WARNING = f"Schedule has empty shifts during next {SCHEDULE_CHECK_NEXT_DAYS} days"
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        if self.context.get("irm_api_contract") == IRM_API_CONTRACT_VERSION:
+            representation["is_user_allowed_to_update"] = self.context["is_user_allowed_to_update"]
+        return representation
 
     def get_warnings(self, obj):
         can_update_user_groups = self.context.get("can_update_user_groups", False)

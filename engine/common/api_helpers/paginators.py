@@ -94,6 +94,13 @@ class PathPrefixedPagePagination(BasePathPrefixedPagination, PageNumberPaginatio
             return paginator.page(paginator.num_pages)
 
 
+class IRMPageSizePaginator(PathPrefixedPagePagination):
+    """Page-number contract used by the source-restored Grafana IRM frontend."""
+
+    page_size = 10
+    page_size_query_param = "page_size"
+
+
 class PathPrefixedCursorPagination(BasePathPrefixedPagination, CursorPagination):
     def get_paginated_response(self, data: PaginatedData) -> Response:
         response = super().get_paginated_response(data)

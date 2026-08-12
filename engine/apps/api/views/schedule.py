@@ -21,7 +21,7 @@ from rest_framework.views import Response
 from rest_framework.viewsets import ModelViewSet
 
 from apps.alerts.models import EscalationChain, EscalationPolicy
-from apps.api.permissions import RBACPermission
+from apps.api.permissions import RBACPermission, user_is_authorized
 from apps.api.serializers.schedule_base import ScheduleFastSerializer
 from apps.api.serializers.schedule_polymorphic import (
     PolymorphicScheduleCreateSerializer,
@@ -49,6 +49,7 @@ from common.api_helpers.mixins import (
 )
 from common.api_helpers.paginators import FifteenPageSizePaginator
 from common.api_helpers.utils import create_engine_url, get_date_range_from_request
+from common.constants.irm import IRM_API_CONTRACT_HEADER, IRM_API_CONTRACT_VERSION
 from common.insight_log import EntityEvent, write_resource_insight_log
 from common.timezones import raise_exception_if_not_valid_timezone
 
@@ -166,6 +167,16 @@ class ScheduleView(
         context = super().get_serializer_context()
         context.update({"can_update_user_groups": self.can_update_user_groups})
         context.update({"oncall_users": self.oncall_users})
+        if self.request.headers.get(IRM_API_CONTRACT_HEADER) == IRM_API_CONTRACT_VERSION:
+            context.update(
+                {
+                    "irm_api_contract": IRM_API_CONTRACT_VERSION,
+                    "is_user_allowed_to_update": user_is_authorized(
+                        self.request.user,
+                        [RBACPermission.Permissions.SCHEDULES_WRITE],
+                    ),
+                }
+            )
         return context
 
     def _annotate_queryset(self, queryset):

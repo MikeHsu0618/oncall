@@ -161,6 +161,46 @@ def test_get_list_schedules(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "role,expected_can_update",
+    [
+        (LegacyAccessControlRole.ADMIN, True),
+        (LegacyAccessControlRole.EDITOR, True),
+        (LegacyAccessControlRole.VIEWER, False),
+    ],
+)
+def test_get_list_schedules_irm_contract_exposes_update_permission(
+    make_organization_and_user_with_plugin_token,
+    make_schedule,
+    make_user_auth_headers,
+    role,
+    expected_can_update,
+):
+    organization, user, token = make_organization_and_user_with_plugin_token(role=role)
+    make_schedule(
+        organization,
+        schedule_class=OnCallScheduleWeb,
+        name="IRM schedule",
+    )
+    client = APIClient()
+    url = reverse("api-internal:schedule-list")
+    auth_headers = make_user_auth_headers(user, token)
+
+    legacy_response = client.get(url, format="json", **auth_headers)
+    assert legacy_response.status_code == status.HTTP_200_OK
+    assert "is_user_allowed_to_update" not in legacy_response.json()["results"][0]
+
+    irm_response = client.get(
+        url,
+        format="json",
+        HTTP_X_GRAFANA_IRM_API_CONTRACT="0.114.0",
+        **auth_headers,
+    )
+    assert irm_response.status_code == status.HTTP_200_OK
+    assert irm_response.json()["results"][0]["is_user_allowed_to_update"] is expected_can_update
+
+
+@pytest.mark.django_db
 def test_get_list_schedules_pagination(
     schedule_internal_api_setup, make_escalation_chain, make_escalation_policy, make_user_auth_headers
 ):

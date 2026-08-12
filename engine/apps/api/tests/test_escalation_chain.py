@@ -62,6 +62,39 @@ def test_list_escalation_chains(escalation_chain_internal_api_setup, make_user_a
 
 
 @pytest.mark.django_db
+def test_list_escalation_chains_irm_contract_is_paginated(
+    make_organization_and_user_with_plugin_token,
+    make_escalation_chain,
+    make_user_auth_headers,
+):
+    organization, user, token = make_organization_and_user_with_plugin_token()
+    escalation_chains = [
+        make_escalation_chain(organization, name="Primary"),
+        make_escalation_chain(organization, name="Secondary"),
+        make_escalation_chain(organization, name="Tertiary"),
+    ]
+    client = APIClient()
+    headers = {
+        **make_user_auth_headers(user, token),
+        "HTTP_X_GRAFANA_IRM_API_CONTRACT": "0.114.0",
+    }
+    url = reverse("api-internal:escalation_chain-list")
+
+    first_page = client.get(url + "?page=1&page_size=2", **headers)
+    second_page = client.get(url + "?page=2&page_size=2", **headers)
+
+    assert first_page.status_code == status.HTTP_200_OK
+    assert second_page.status_code == status.HTTP_200_OK
+    assert first_page.json()["count"] == 3
+    assert first_page.json()["page_size"] == 2
+    assert len(first_page.json()["results"]) == 2
+    assert len(second_page.json()["results"]) == 1
+    assert {item["id"] for page in (first_page, second_page) for item in page.json()["results"]} == {
+        chain.public_primary_key for chain in escalation_chains
+    }
+
+
+@pytest.mark.django_db
 def test_list_escalation_chains_filters(escalation_chain_internal_api_setup, make_user_auth_headers):
     user, token, escalation_chain = escalation_chain_internal_api_setup
     client = APIClient()
@@ -76,6 +109,14 @@ def test_list_escalation_chains_filters(escalation_chain_internal_api_setup, mak
             "display_name": escalation_chain.name,
         }
     ]
+
+    irm_response = client.get(
+        url,
+        HTTP_X_GRAFANA_IRM_API_CONTRACT="0.114.0",
+        **make_user_auth_headers(user, token),
+    )
+    assert irm_response.status_code == status.HTTP_200_OK
+    assert irm_response.json() == response.json()
 
 
 @pytest.mark.django_db
