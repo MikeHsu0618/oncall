@@ -37,9 +37,9 @@ class SelfHostedInstallView(GrafanaHeadersMixin, APIView):
             provisioning_info["error"] = f"Unable to connect to the specified Grafana API - {grafana_url}"
             return Response(data=provisioning_info, status=status.HTTP_400_BAD_REQUEST)
         elif status_code in [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]:
-            provisioning_info[
-                "error"
-            ] = f"You are not authorized to communicate with the specified Grafana API - {grafana_url}"
+            provisioning_info["error"] = (
+                f"You are not authorized to communicate with the specified Grafana API - {grafana_url}"
+            )
             return Response(data=provisioning_info, status=status.HTTP_400_BAD_REQUEST)
 
         organization = Organization.objects.filter(stack_id=stack_id, org_id=org_id).first()
@@ -47,10 +47,26 @@ class SelfHostedInstallView(GrafanaHeadersMixin, APIView):
 
         if organization:
             organization.revoke_plugin()
+            organization.stack_slug = settings.SELF_HOSTED_SETTINGS["STACK_SLUG"]
+            organization.org_slug = settings.SELF_HOSTED_SETTINGS["ORG_SLUG"]
+            organization.org_title = settings.SELF_HOSTED_SETTINGS["ORG_TITLE"]
+            organization.region_slug = settings.SELF_HOSTED_SETTINGS["REGION_SLUG"]
+            organization.cluster_slug = settings.SELF_HOSTED_SETTINGS["CLUSTER_SLUG"]
             organization.grafana_url = grafana_url
             organization.api_token = grafana_api_token
             organization.is_rbac_permissions_enabled = rbac_is_enabled
-            organization.save(update_fields=["grafana_url", "api_token", "is_rbac_permissions_enabled"])
+            organization.save(
+                update_fields=[
+                    "stack_slug",
+                    "org_slug",
+                    "org_title",
+                    "region_slug",
+                    "cluster_slug",
+                    "grafana_url",
+                    "api_token",
+                    "is_rbac_permissions_enabled",
+                ]
+            )
         else:
             organization = Organization.objects.create(
                 stack_id=stack_id,

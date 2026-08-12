@@ -95,7 +95,15 @@ def test_if_organization_exists_it_is_updated(
     make_self_hosted_install_header,
     make_organization,
 ):
-    organization = make_organization(stack_id=STACK_ID, org_id=ORG_ID)
+    organization = make_organization(
+        stack_id=STACK_ID,
+        org_id=ORG_ID,
+        stack_slug="stale_stack_slug",
+        org_slug="stale_org_slug",
+        org_title="Stale organization title",
+        region_slug="stale_region_slug",
+        cluster_slug="stale_cluster_slug",
+    )
     provision_plugin_response = {"stackId": STACK_ID, "orgId": ORG_ID, "onCallToken": "HELLOOO", "license": LICENSE}
 
     mocked_provision_plugin.return_value = provision_plugin_response
@@ -122,6 +130,11 @@ def test_if_organization_exists_it_is_updated(
     assert organization.grafana_url == GRAFANA_API_URL
     assert organization.api_token == GRAFANA_TOKEN
     assert organization.is_rbac_permissions_enabled is True
+    assert organization.stack_slug == STACK_SLUG
+    assert organization.org_slug == ORG_SLUG
+    assert organization.org_title == ORG_TITLE
+    assert organization.region_slug == REGION_SLUG
+    assert organization.cluster_slug == CLUSTER_SLUG
 
 
 @override_settings(SELF_HOSTED_SETTINGS=SELF_HOSTED_SETTINGS)

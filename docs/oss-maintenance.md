@@ -58,6 +58,13 @@ by the archived OnCall documentation but absent from the final OSS source:
   sample by alert-group ID; the daily calculation rebuilds the cache from the
   database as the durability backstop.
 
+The self-hosted installation path now refreshes all configured organization
+identity fields, rather than updating only the Grafana token and URL. The
+idempotent `sync_self_hosted_identity` command applies the same reconciliation
+to an existing volume and immediately recalculates exporter caches when the
+identity changes. This keeps Prometheus tenant labels aligned with the official
+IRM local Insights scene without dropping its stack selector.
+
 The sibling IRM repository audits every recovered static REST route plus
 explicit expansions for its dynamic template/path callsites. The current
 0.114.0 audit classifies 204 unique routes: 190 in this engine, 8 in the
@@ -104,7 +111,10 @@ docker run --rm \
   -v "$PWD/engine:/etc/app" \
   -v "$PWD/grafana-plugin:/etc/grafana-plugin:ro" \
   grafana-oncall-tests:oss-maintenance \
-  pytest -q apps/metrics_exporter/tests
+  pytest -q \
+    apps/grafana_plugin/tests/test_self_hosted_install.py \
+    apps/grafana_plugin/tests/test_sync_self_hosted_identity_command.py \
+    apps/metrics_exporter/tests
 ```
 
 The sibling `grafana-irm-app` repository provides the integrated clean-Grafana
@@ -112,7 +122,7 @@ runtime:
 
 ```sh
 cd ../grafana-irm-app
-npm run runtime:up:oncall-source
+npm run runtime:up
 ```
 
 It builds this checkout, reuses the persistent OnCall/Redis volumes, and loads
