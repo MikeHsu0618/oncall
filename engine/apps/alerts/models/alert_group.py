@@ -567,7 +567,9 @@ class AlertGroup(AlertGroupSlackRenderingMixin, EscalationSnapshotMixin, models.
         title = title[:2000]  # set max title length to avoid exceptions with too long declare incident link
         link = urllib.parse.quote_plus(self.web_link)
 
-        return UIURLBuilder(self.channel.organization).declare_incident(f"?caption={caption}&url={link}&title={title}")
+        return UIURLBuilder(self.channel.organization).declare_incident(
+            f"?declare=new&caption={caption}&url={link}&title={title}"
+        )
 
     @property
     def happened_while_maintenance(self):

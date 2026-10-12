@@ -18,6 +18,7 @@ from apps.base.utils import live_settings
 from apps.chatops_proxy.utils import uninstall_slack as uninstall_slack_from_chatops_proxy
 from apps.grafana_plugin.ui_url_builder import UIURLBuilder
 from apps.slack.client import SlackClient
+from apps.slack.shared_owner import selected_shared_owner
 from apps.slack.errors import SlackAPIError
 from apps.slack.scenarios.alertgroup_appearance import STEPS_ROUTING as ALERTGROUP_APPEARANCE_ROUTING
 from apps.slack.scenarios.alertgroup_timeline import STEPS_ROUTING as ALERTGROUP_TIMELINE_ROUTING
@@ -128,6 +129,11 @@ class SlackEventApiEndpointView(APIView):
         if isinstance(payload, str):
             payload = json.JSONDecoder().decode(payload)
 
+        from apps.slack.models import SharedSlackInstallation
+        team = self._get_slack_team_identity_from_payload(payload)
+        if team is not None and SharedSlackInstallation.objects.filter(team=team).exists():
+            return Response(status=403)
+
         # Checking if it's repeated Slack request
         if "HTTP_X_SLACK_RETRY_NUM" in request.META and int(request.META["HTTP_X_SLACK_RETRY_NUM"]) > 1:
             logger.critical(
@@ -135,6 +141,13 @@ class SlackEventApiEndpointView(APIView):
             )
             payload["amixr_slack_retries"] = request.META["HTTP_X_SLACK_RETRY_NUM"]
 
+        return self.dispatch_payload(payload, request)
+
+    def dispatch_payload(self, payload, request, scoped_organization=None):
+        """Shared-app bridge enters here after authenticating and bounding its tenant.
+
+        All native scenario selection and authorization remain in this method.
+        """
         payload_type = payload.get("type")
         payload_type_is_block_actions = payload_type == PayloadType.BLOCK_ACTIONS
         payload_command = payload.get("command")
@@ -268,6 +281,18 @@ class SlackEventApiEndpointView(APIView):
             ).first()
 
         organization = self._get_organization_from_payload(payload, slack_team_identity)
+        if scoped_organization is not None:
+            if organization is not None and organization.pk != scoped_organization.pk:
+                return Response(status=403)
+            organization = scoped_organization
+        if payload_type == PayloadType.BLOCK_SUGGESTION:
+            from apps.slack.incident_paging import dispatch_session
+            from apps.slack.paging_options import dispatch_options
+            result = dispatch_session(organization, slack_team_identity, slack_user_identity, payload)
+            if result is not None:
+                return result
+            return dispatch_options(organization, slack_team_identity, slack_user_identity, payload)
+
         logger.info("Organization: " + str(organization))
         logger.info("SlackUserIdentity detected: " + str(slack_user_identity))
 
@@ -322,6 +347,14 @@ class SlackEventApiEndpointView(APIView):
             self._open_warning_for_unconnected_user(sc, payload)
             return Response(status=200)
 
+        # Opaque incident paging sessions use original scenarios, with all form
+        # state and origin binding checked server-side before generic routing.
+        from apps.slack.incident_paging import dispatch_session
+
+        paging_result = dispatch_session(organization, slack_team_identity, slack_user_identity, payload)
+        if paging_result is not None:
+            return paging_result
+
         # Capture cases when we expect stateful message from user
         if payload_type == PayloadType.EVENT_CALLBACK:
             event_type = payload_event_type
@@ -366,8 +399,10 @@ class SlackEventApiEndpointView(APIView):
                         Step = route["step"]
                         logger.info("Routing to {}".format(Step))
                         step = Step(slack_team_identity, organization, user)
-                        org = get_org_from_chatops_proxy_header(request, slack_team_identity)
-                        step.process_scenario(slack_user_identity, slack_team_identity, payload, predefined_org=org)
+                        org = scoped_organization or get_org_from_chatops_proxy_header(request, slack_team_identity)
+                        result = step.process_scenario(slack_user_identity, slack_team_identity, payload, predefined_org=org)
+                        if result is not None:
+                            return result
                         step_was_found = True
 
                 if payload_type == route_payload_type:
@@ -434,9 +469,10 @@ class SlackEventApiEndpointView(APIView):
                             step_was_found = True
 
         if not step_was_found:
-            logger.warning("SlackEventApiEndpointView: Step is undefined" + str(payload))
+            logger.warning("SlackEventApiEndpointView: Step is undefined" +
+                ("" if selected_shared_owner() else str(payload)))
             return Response(status=422)
-        return Response(status=200)
+        return getattr(step, "_shared_warning_response", None) or Response(status=200)
 
     @staticmethod
     def _get_slack_team_identity_from_payload(payload: EventPayload) -> SlackTeamIdentity | None:

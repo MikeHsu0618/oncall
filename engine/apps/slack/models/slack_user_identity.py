@@ -105,7 +105,27 @@ class SlackUserIdentity(models.Model):
     def __str__(self):
         return self.slack_login
 
-    def send_link_to_slack_message(self, slack_message: "SlackMessage"):
+    def send_link_to_slack_message(self, slack_message: "SlackMessage", *, user=None, client=None):
+        from apps.slack.client import SharedMutationUnknown
+        from apps.slack.shared_owner import SharedOwnerError
+        sc = client or SlackClient(self.slack_team_identity, source_owner=slack_message.source_owner,
+            source_organization=slack_message.alert_group.channel.organization if slack_message.alert_group else None)
+        if sc._shared:
+            if user is None or user.slack_user_identity_id != self.pk:
+                raise SharedOwnerError()
+            sc.bind_notification_recipient(user, slack_message)
+            # Use the same captured recipient client even for a cold permalink.
+            permalink = slack_message.cached_permalink
+            if permalink is None:
+                permalink = sc.chat_getPermalink(channel=slack_message.channel.slack_id,
+                    message_ts=slack_message.slack_id)["permalink"]
+                slack_message.cached_permalink = permalink
+                try:
+                    slack_message.save(update_fields=["cached_permalink"])
+                except Exception:
+                    raise SharedMutationUnknown() from None
+        else:
+            permalink = slack_message.permalink
         blocks = [
             {
                 "type": "section",
@@ -122,7 +142,7 @@ class SlackUserIdentity(models.Model):
                         "type": "button",
                         "action_id": f"{NotifiedUserNotInChannelStep.routing_uid()}",
                         "text": {"type": "plain_text", "text": "➡️ Go to the alert group"},
-                        "url": slack_message.permalink,
+                        "url": permalink,
                         "style": "primary",
                     }
                 ],
@@ -142,9 +162,8 @@ class SlackUserIdentity(models.Model):
             },
         ]
 
-        sc = SlackClient(self.slack_team_identity)
         return sc.chat_postMessage(
-            channel=self.im_channel_id,
+            channel=self.get_im_channel_id(client=sc) if sc._shared else self.im_channel_id,
             text="You are invited to look at an alert group!",
             blocks=blocks,
         )
@@ -201,15 +220,72 @@ class SlackUserIdentity(models.Model):
 
     @property
     def im_channel_id(self):
+        return self.get_im_channel_id()
+
+    def get_im_channel_id(self, *, client=None):
+        from apps.slack.client import SharedMutationUnknown
+        from apps.slack.shared_owner import SharedOwnerError, _slack, local_source_snapshot
+        if client is None and local_source_snapshot(self.slack_team_identity_id) is not None:
+            raise SharedOwnerError()
+        if client is not None and client._shared:
+            recipient = client._notification_recipient or client._completion_recipient
+            if recipient is None or recipient.snapshot[4] != self.pk:
+                raise SharedOwnerError()
+            recipient.require_current()
+            expected = [self.cached_im_channel_id]
+            identity_tuple = (self.pk, self.slack_id, self.slack_team_identity_id, self.counter)
+            if identity_tuple != recipient.snapshot[4:8]:
+                raise SharedOwnerError()
+            if client._notification_recipient is not None and expected[0] != recipient.initial_im_channel:
+                raise SharedOwnerError()
+            def address_current():
+                current = type(self).objects.filter(pk=self.pk).values_list(
+                    "id", "slack_id", "slack_team_identity_id", "counter", "cached_im_channel_id").first()
+                if (current != (*identity_tuple, expected[0])
+                        or (self.pk, self.slack_id, self.slack_team_identity_id, self.counter,
+                            self.cached_im_channel_id) != current):
+                    raise SharedOwnerError()
+            address_current()
+            previous = client._admit_request
+            def admission():
+                if previous is not None:
+                    previous()
+                address_current()
+            client._admit_request = admission
+            client._recipient_address_check = address_current
         if self.cached_im_channel_id is None:
-            sc = SlackClient(self.slack_team_identity)
+            sc = client or SlackClient(self.slack_team_identity)
             try:
                 result = sc.conversations_open(users=self.slack_id, return_im=True)
-                self.cached_im_channel_id = result["channel"]["id"]
-                self.save()
+                channel_id = result["channel"]["id"]
+                if sc._shared:
+                    if not _slack(channel_id, "D"):
+                        raise SharedMutationUnknown()
+                    try:
+                        address_current()
+                        # Only the proved cold-cache transition may adopt this
+                        # provider result; never overwrite another address/identity.
+                        changed = type(self).objects.filter(pk=self.pk, slack_id=identity_tuple[1],
+                            slack_team_identity_id=identity_tuple[2], counter=identity_tuple[3],
+                            cached_im_channel_id__isnull=True).update(cached_im_channel_id=channel_id)
+                        if changed != 1:
+                            raise SharedMutationUnknown()
+                        expected[0] = channel_id
+                        self.cached_im_channel_id = channel_id
+                        address_current()
+                    except Exception:
+                        raise SharedMutationUnknown() from None
+                else:
+                    self.cached_im_channel_id = channel_id
+                    self.save()
             except SlackAPICannotDMBotError:
                 pass
-
+        if client is not None and client._shared:
+            address_current()
+            if not _slack(self.cached_im_channel_id, "D"):
+                raise SharedOwnerError()
+            if client._completion_notice is not None:
+                client._completion_notice[2].add(self.cached_im_channel_id)
         return self.cached_im_channel_id
 
     def update_profile_info(self):

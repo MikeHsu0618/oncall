@@ -22,6 +22,7 @@ if typing.TYPE_CHECKING:
 
 
 class OpenAlertAppearanceDialogStep(AlertGroupActionsMixin, scenario_step.ScenarioStep):
+    shared_loading_operation = 'open'
     REQUIRED_PERMISSIONS = [RBACPermission.Permissions.CHATOPS_WRITE]
 
     def process_scenario(

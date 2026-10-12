@@ -23,8 +23,10 @@ from apps.slack.utils import post_message_to_channel
         (SlackAPIError, True),
     ],
 )
-def test_post_message_to_channel(error, raise_exception):
-    organization = Mock()
+@pytest.mark.django_db
+def test_post_message_to_channel(error, raise_exception, make_slack_team_identity, make_organization):
+    team = make_slack_team_identity()
+    organization = make_organization(slack_team_identity=team)
     with patch.object(SlackClient, "chat_postMessage", side_effect=error(Mock())) as mock_chat_postMessage:
         if raise_exception:
             with pytest.raises(SlackAPIError):

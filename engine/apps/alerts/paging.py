@@ -139,6 +139,7 @@ def direct_paging(
     important_team_escalation: bool = False,
     users: UserNotifications | None = None,
     alert_group: AlertGroup | None = None,
+    notification_enqueue: typing.Callable | None = None,
 ) -> AlertGroup | None:
     """Trigger escalation targeting given team/users.
 
@@ -148,6 +149,10 @@ def direct_paging(
     if users is None:
         users = []
 
+    if from_user.organization_id != organization.pk or (team is not None and team.organization_id != organization.pk):
+        raise ValueError("Paging identity and team must belong to the organization")
+    if any(user is None or user.organization_id != organization.pk for user, _ in users):
+        raise ValueError("Paging responders must belong to the organization")
     if not users and team is None:
         raise DirectPagingUserTeamValidationError
 
@@ -176,7 +181,16 @@ def direct_paging(
                 from_user,
             )
 
-        for u, important in users:
+        notifications = [(user, important, False) for user, important in users]
+        if team is not None and not alert_group.escalation_chain_exists:
+            # Cloud's unconfigured-team fallback belongs to the native engine:
+            # use its default fallback policy, never a second email sender.
+            explicit_users = {user.pk for user, _ in users}
+            notifications.extend((member, False, True)
+                                 for member in team.users.filter(organization=organization)
+                                 if member.pk not in explicit_users)
+
+        for u, important, force_fallback in notifications:
             alert_group.log_records.create(
                 type=AlertGroupLogRecord.TYPE_DIRECT_PAGING,
                 author=from_user,
@@ -186,13 +200,24 @@ def direct_paging(
                     "important": important,
                 },
             )
-            transaction.on_commit(
-                partial(
-                    notify_user_task.apply_async,
-                    (u.pk, alert_group.pk),
-                    {"important": important, "notify_even_acknowledged": True, "notify_anyway": True},
+            if notification_enqueue is not None:
+                # Shared incident paging records the original task intent inside
+                # its outer transaction. Default API/Slack behaviour is unchanged.
+                if force_fallback:
+                    notification_enqueue(u, alert_group, important, force_default_fallback=True)
+                else:
+                    notification_enqueue(u, alert_group, important)
+            else:
+                kwargs = {"important": important, "notify_even_acknowledged": True, "notify_anyway": True}
+                if force_fallback:
+                    kwargs["force_default_fallback"] = True
+                transaction.on_commit(
+                    partial(
+                        notify_user_task.apply_async,
+                        (u.pk, alert_group.pk),
+                        kwargs,
+                    )
                 )
-            )
 
     return alert_group
 

@@ -16,7 +16,7 @@ from apps.telegram.models import TelegramMessage
 from common.api_helpers.custom_fields import TeamPrimaryKeyRelatedField
 from common.api_helpers.mixins import EagerLoadingMixin
 
-from .alert import AlertSerializer
+from .alert import AlertRawSerializer, AlertSerializer
 from .alert_receive_channel import FastAlertReceiveChannelSerializer
 from .alerts_field_cache_buster_mixin import AlertsFieldCacheBusterMixin
 from .user import FastUserSerializer, UserShortSerializer
@@ -233,6 +233,7 @@ class AlertGroupListSerializer(
 
 class AlertGroupSerializer(AlertGroupListSerializer):
     alerts = serializers.SerializerMethodField("get_limited_alerts")
+    last_alert = serializers.SerializerMethodField()
     last_alert_at = serializers.SerializerMethodField()
     paged_users = serializers.SerializerMethodField()
     external_urls = serializers.SerializerMethodField()
@@ -240,6 +241,7 @@ class AlertGroupSerializer(AlertGroupListSerializer):
     class Meta(AlertGroupListSerializer.Meta):
         fields = AlertGroupListSerializer.Meta.fields + [
             "alerts",
+            "last_alert",
             "render_after_resolve_report_json",
             "slack_permalink",  # TODO: make plugin frontend use "permalinks" field to get Slack link
             "last_alert_at",
@@ -254,6 +256,11 @@ class AlertGroupSerializer(AlertGroupListSerializer):
             return obj.started_at
 
         return last_alert.created_at
+
+    @extend_schema_field(AlertRawSerializer)
+    def get_last_alert(self, obj: "AlertGroup"):
+        last_alert = obj.alerts.last()
+        return AlertRawSerializer(last_alert).data if last_alert is not None else None
 
     @extend_schema_field(AlertSerializer(many=True))
     def get_limited_alerts(self, obj: "AlertGroup"):

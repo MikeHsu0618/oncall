@@ -457,8 +457,8 @@ def test_get_team_select_blocks(
     is_team_escalation_important,
 ):
     info_msg = (
-        "*Note*: You can only page teams which have a Direct Paging integration that is configured. "
-        "<https://grafana.com/docs/oncall/latest/integrations/manual/#set-up-direct-paging-for-a-team|Learn more>"
+        "*Note*: Teams without an escalation chain notify all members using the default fallback policy. "
+        "<https://grafana.com/docs/grafana-cloud/observe-and-act/respond-to-incidents/integrations/alert-sources/manual/|Learn more>"
     )
 
     input_id_prefix = "nmxcnvmnxv"
@@ -466,6 +466,7 @@ def test_get_team_select_blocks(
     def _contstruct_team_option(team):
         return {
             "text": {"emoji": True, "text": team.name, "type": "plain_text"},
+            "description": {"type": "plain_text", "text": team.public_primary_key},
             "value": make_value({"id": team.pk}, organization),
         }
 
@@ -486,7 +487,7 @@ def test_get_team_select_blocks(
     assert context_block["type"] == "context"
     assert (
         context_block["elements"][0]["text"]
-        == info_msg + ".\n\nThere are currently no teams which have a Direct Paging integration that is configured."
+        == info_msg + ".\n\nThere are currently no teams in this stack."
     )
 
     # no team selected - 1 team direct paging integration available
@@ -509,8 +510,9 @@ def test_get_team_select_blocks(
     input_block, context_block = blocks
 
     assert input_block["type"] == "input"
-    assert len(input_block["element"]["options"]) == 1
-    assert input_block["element"]["options"] == [_contstruct_team_option(team)]
+    assert input_block["element"]["type"] == "external_select"
+    assert input_block["element"]["min_query_length"] == 0
+    assert "options" not in input_block["element"]
     assert context_block["elements"][0]["text"] == info_msg
 
     # team selected - team severity checkbox should also now appear
@@ -556,8 +558,8 @@ def test_get_team_select_blocks(
         return sorted(options, key=lambda o: o["value"])
 
     assert input_block["type"] == "input"
-    assert len(input_block["element"]["options"]) == 2
-    assert _sort_team_options(input_block["element"]["options"]) == _sort_team_options([team1_option, team2_option])
+    assert input_block["element"]["type"] == "external_select"
+    assert "options" not in input_block["element"]
     assert input_block["element"]["initial_option"] == team2_option
 
     assert (
@@ -602,8 +604,8 @@ def test_get_team_select_blocks(
     input_block, context_block = blocks
 
     assert input_block["type"] == "input"
-    assert len(input_block["element"]["options"]) == 1
-    assert json.loads(input_block["element"]["options"][0]["value"]) == json.loads(
-        _contstruct_team_option(team)["value"]
-    )
+    assert input_block["element"]["type"] == "external_select"
+    from apps.slack.paging_options import search_targets
+    loaded = search_targets(organization, {"action_id": OnPagingTeamChange.routing_uid(), "value": team.name})
+    assert loaded["options"] == [_contstruct_team_option(team)]
     assert context_block["elements"][0]["text"] == info_msg

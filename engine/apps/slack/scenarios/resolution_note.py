@@ -358,6 +358,7 @@ class UpdateResolutionNoteStep(scenario_step.ScenarioStep):
 
 
 class ResolutionNoteModalStep(AlertGroupActionsMixin, scenario_step.ScenarioStep):
+    shared_loading_operation = 'open'
     REQUIRED_PERMISSIONS = [RBACPermission.Permissions.CHATOPS_WRITE]
     RESOLUTION_NOTE_TEXT_BLOCK_ID = "resolution_note_text"
     RESOLUTION_NOTE_MESSAGES_MAX_COUNT = 25

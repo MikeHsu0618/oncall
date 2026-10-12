@@ -10,7 +10,7 @@ from django.core.cache import cache
 from django.utils import timezone
 
 from apps.slack.alert_group_slack_service import AlertGroupSlackService
-from apps.slack.client import SlackClient
+from apps.slack.client import SlackClient, SharedMutationUnknown
 from apps.slack.constants import SLACK_BOT_ID
 from apps.slack.errors import (
     SlackAPICantUpdateMessageError,
@@ -31,7 +31,7 @@ logger = get_task_logger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-@shared_dedicated_queue_retry_task(autoretry_for=(Exception,), retry_backoff=True)
+@shared_dedicated_queue_retry_task(autoretry_for=(Exception,), dont_autoretry_for=(SharedMutationUnknown,), retry_backoff=True)
 def update_alert_group_slack_message(slack_message_pk: int) -> None:
     """
     Background task to update the Slack message for an alert group.
@@ -94,7 +94,8 @@ def update_alert_group_slack_message(slack_message_pk: int) -> None:
         )
         return
 
-    slack_client = SlackClient(slack_message.slack_team_identity)
+    slack_client = SlackClient(slack_message.slack_team_identity,
+        source_owner=slack_message.source_owner, source_organization=alert_group.channel.organization)
 
     try:
         slack_client.chat_update(
@@ -124,7 +125,7 @@ def update_alert_group_slack_message(slack_message_pk: int) -> None:
     slack_message.mark_active_update_task_as_complete()
 
 
-@shared_dedicated_queue_retry_task(autoretry_for=(Exception,), retry_backoff=True)
+@shared_dedicated_queue_retry_task(autoretry_for=(Exception,), dont_autoretry_for=(SharedMutationUnknown,), retry_backoff=True)
 def check_slack_message_exists_before_post_message_to_thread(
     alert_group_pk,
     text,
@@ -200,7 +201,7 @@ def check_slack_message_exists_before_post_message_to_thread(
 
 @shared_dedicated_queue_retry_task(
     autoretry_for=(Exception,),
-    dont_autoretry_for=(Retry,),
+    dont_autoretry_for=(Retry, SharedMutationUnknown),
     retry_backoff=True,
     max_retries=1,
 )
@@ -221,7 +222,11 @@ def send_message_to_thread_if_bot_not_in_channel(
     slack_team_identity = SlackTeamIdentity.objects.get(pk=slack_team_identity_pk)
     alert_group = AlertGroup.objects.get(pk=alert_group_pk)
 
-    sc = SlackClient(slack_team_identity, enable_ratelimit_retry=True)
+    root = alert_group.slack_message
+    if root is None:
+        return
+    sc = SlackClient(slack_team_identity, enable_ratelimit_retry=True,
+        source_owner=root.source_owner, source_organization=alert_group.channel.organization)
 
     bot_user_id = slack_team_identity.bot_user_id
     members = slack_team_identity.get_conversation_members(sc, channel_id)
@@ -242,7 +247,7 @@ def send_message_to_thread_if_bot_not_in_channel(
             )
 
 
-@shared_dedicated_queue_retry_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=0)
+@shared_dedicated_queue_retry_task(autoretry_for=(Exception,), dont_autoretry_for=(SharedMutationUnknown,), retry_backoff=True, max_retries=0)
 def unpopulate_slack_user_identities(organization_pk, force=False, ts=None):
     from apps.user_management.models import Organization, User
 
@@ -257,7 +262,7 @@ def unpopulate_slack_user_identities(organization_pk, force=False, ts=None):
         organization.save(update_fields=["slack_team_identity", "default_slack_channel"])
 
 
-@shared_dedicated_queue_retry_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=0)
+@shared_dedicated_queue_retry_task(autoretry_for=(Exception,), dont_autoretry_for=(SharedMutationUnknown,), retry_backoff=True, max_retries=0)
 def populate_slack_user_identities(organization_pk):
     from apps.slack.models import SlackUserIdentity
     from apps.user_management.models import Organization
@@ -340,7 +345,7 @@ def populate_slack_user_identities(organization_pk):
 
 
 @shared_dedicated_queue_retry_task(
-    autoretry_for=(Exception,), retry_backoff=True, max_retries=1 if settings.DEBUG else None
+    autoretry_for=(Exception,), dont_autoretry_for=(SharedMutationUnknown,), retry_backoff=True, max_retries=1 if settings.DEBUG else None
 )
 def post_slack_rate_limit_message(integration_id: int, error_message_verb: typing.Optional[str] = None) -> None:
     """
@@ -379,7 +384,7 @@ def post_slack_rate_limit_message(integration_id: int, error_message_verb: typin
 
 
 @shared_dedicated_queue_retry_task(
-    autoretry_for=(Exception,), retry_backoff=True, max_retries=1 if settings.DEBUG else None
+    autoretry_for=(Exception,), dont_autoretry_for=(SharedMutationUnknown,), retry_backoff=True, max_retries=1 if settings.DEBUG else None
 )
 def populate_slack_usergroups():
     from apps.slack.models import SlackTeamIdentity
@@ -399,7 +404,7 @@ def populate_slack_usergroups():
 
 
 @shared_dedicated_queue_retry_task(
-    autoretry_for=(Exception,), retry_backoff=True, max_retries=1 if settings.DEBUG else None
+    autoretry_for=(Exception,), dont_autoretry_for=(SharedMutationUnknown,), retry_backoff=True, max_retries=1 if settings.DEBUG else None
 )
 def populate_slack_usergroups_for_team(slack_team_identity_id):
     from apps.slack.models import SlackTeamIdentity, SlackUserGroup
@@ -463,7 +468,7 @@ def start_update_slack_user_group_for_schedules():
         update_slack_user_group_for_schedules.delay(user_group_pk=user_group_pk)
 
 
-@shared_dedicated_queue_retry_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
+@shared_dedicated_queue_retry_task(autoretry_for=(Exception,), dont_autoretry_for=(SharedMutationUnknown,), retry_backoff=True, max_retries=3)
 def update_slack_user_group_for_schedules(user_group_pk):
     from apps.slack.models import SlackUserGroup
 
@@ -477,7 +482,7 @@ def update_slack_user_group_for_schedules(user_group_pk):
 
 
 @shared_dedicated_queue_retry_task(
-    autoretry_for=(Exception,), retry_backoff=True, max_retries=1 if settings.DEBUG else None
+    autoretry_for=(Exception,), dont_autoretry_for=(SharedMutationUnknown,), retry_backoff=True, max_retries=1 if settings.DEBUG else None
 )
 def populate_slack_channels():
     from apps.slack.models import SlackTeamIdentity
@@ -507,7 +512,7 @@ def start_populate_slack_channels_for_team(
 
 
 @shared_dedicated_queue_retry_task(
-    autoretry_for=(Exception,), retry_backoff=True, max_retries=1 if settings.DEBUG else None
+    autoretry_for=(Exception,), dont_autoretry_for=(SharedMutationUnknown,), retry_backoff=True, max_retries=1 if settings.DEBUG else None
 )
 def populate_slack_channels_for_team(slack_team_identity_id: int, cursor: typing.Optional[str] = None) -> None:
     """
@@ -602,7 +607,7 @@ def populate_slack_channels_for_team(slack_team_identity_id: int, cursor: typing
             cache.delete(collected_channels_key)
 
 
-@shared_dedicated_queue_retry_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=0)
+@shared_dedicated_queue_retry_task(autoretry_for=(Exception,), dont_autoretry_for=(SharedMutationUnknown,), retry_backoff=True, max_retries=0)
 def clean_slack_integration_leftovers(organization_id: int, *args, **kwargs) -> None:
     """
     This task removes binding to slack (e.g ChannelFilter's slack channel) for a given organization.
@@ -616,7 +621,7 @@ def clean_slack_integration_leftovers(organization_id: int, *args, **kwargs) -> 
     OnCallSchedule.objects.filter(organization_id=organization_id).update(slack_channel=None, user_group=None)
 
 
-@shared_dedicated_queue_retry_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=10)
+@shared_dedicated_queue_retry_task(autoretry_for=(Exception,), dont_autoretry_for=(SharedMutationUnknown,), retry_backoff=True, max_retries=10)
 def clean_slack_channel_leftovers(slack_team_identity_id: int, slack_channel_id: str) -> None:
     """
     This task removes binding to slack channel after a channel is archived in Slack.

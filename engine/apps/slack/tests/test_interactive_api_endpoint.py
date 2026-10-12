@@ -311,7 +311,7 @@ def test_accept_shift_swap_request(
 
 
 @patch("apps.slack.views.SlackEventApiEndpointView.verify_signature", return_value=True)
-@patch.object(StartDirectPaging, "process_scenario")
+@patch.object(StartDirectPaging, "process_scenario", return_value=None)
 @pytest.mark.django_db
 def test_grafana_escalate(
     mock_process_scenario,
@@ -354,7 +354,7 @@ def test_grafana_escalate(
 
 
 @patch("apps.slack.views.SlackEventApiEndpointView.verify_signature", return_value=True)
-@patch.object(StartDirectPaging, "process_scenario")
+@patch.object(StartDirectPaging, "process_scenario", return_value=None)
 @pytest.mark.django_db
 def test_grafana_escalate_with_org_from_chatops_proxy_defines_org(
     mock_process_scenario,
@@ -397,7 +397,7 @@ def test_grafana_escalate_with_org_from_chatops_proxy_defines_org(
 
 
 @patch("apps.slack.views.SlackEventApiEndpointView.verify_signature", return_value=True)
-@patch.object(StartDirectPaging, "process_scenario")
+@patch.object(StartDirectPaging, "process_scenario", return_value=None)
 @pytest.mark.django_db
 def test_escalate(
     mock_process_scenario,

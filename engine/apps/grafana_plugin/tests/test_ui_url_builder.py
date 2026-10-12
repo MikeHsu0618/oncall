@@ -1,4 +1,5 @@
 import pytest
+from django.test import override_settings
 
 from apps.grafana_plugin.ui_url_builder import UIURLBuilder
 from common.constants.plugin_ids import PluginID
@@ -109,3 +110,16 @@ def test_build_url_works_for_irm_and_oncall_plugins(org_setup, is_grafana_irm_en
 def test_build_url_service_detail_page(org_setup):
     builder = UIURLBuilder(org_setup())
     assert builder.service_page("service-a") == f"{GRAFANA_URL}/a/{PluginID.SLO}/service/service-a"
+
+
+@pytest.mark.django_db
+@override_settings(GRAFANA_PUBLIC_URL="http://localhost:3000")
+def test_browser_links_use_public_grafana_url(org_setup):
+    organization = org_setup(is_grafana_irm_enabled=True)
+    organization.grafana_url = "http://grafana:3000"
+    assert UIURLBuilder(organization).alert_group_detail(ALERT_GROUP_ID) == (
+        f"http://localhost:3000/a/{PluginID.IRM}/alert-groups/{ALERT_GROUP_ID}"
+    )
+    assert UIURLBuilder(organization, base_url="https://other.example").alert_group_detail(ALERT_GROUP_ID) == (
+        f"https://other.example/a/{PluginID.IRM}/alert-groups/{ALERT_GROUP_ID}"
+    )

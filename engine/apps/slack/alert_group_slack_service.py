@@ -1,7 +1,8 @@
 import logging
 import typing
 
-from apps.slack.client import SlackClient
+from apps.slack.client import SlackClient, SharedMutationUnknown
+from apps.slack.shared_owner import SharedOwnerError
 from apps.slack.errors import (
     SlackAPIChannelArchivedError,
     SlackAPIChannelNotFoundError,
@@ -43,6 +44,10 @@ class AlertGroupSlackService:
 
         slack_message = alert_group.slack_message
 
+        if getattr(self._slack_client, "_shared", False) is True:
+            if (slack_message is None or slack_message.source_owner != self._slack_client.shared_source_owner()
+                    or alert_group.channel.organization_id != self._slack_client._shared_org_id):
+                raise SharedOwnerError()
         if attachments is None:
             attachments = []
 
@@ -63,8 +68,14 @@ class AlertGroupSlackService:
         ):
             return
 
-        alert_group.slack_messages.create(
-            slack_id=result["ts"],
-            _slack_team_identity=self.slack_team_identity,
-            channel=slack_message.channel,
-        )
+        try:
+            alert_group.slack_messages.create(
+                slack_id=result["ts"],
+                source_owner=self._slack_client.shared_source_owner(),
+                _slack_team_identity=self.slack_team_identity,
+                channel=slack_message.channel,
+            )
+        except Exception:
+            if getattr(self._slack_client, "_shared", False) is True:
+                raise SharedMutationUnknown() from None
+            raise

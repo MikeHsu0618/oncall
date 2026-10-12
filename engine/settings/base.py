@@ -55,6 +55,7 @@ DOCS_URL = "https://grafana.com/docs/oncall/latest/"
 
 # Settings of running OnCall instance.
 BASE_URL = os.environ.get("BASE_URL")  # Root URL of OnCall backend
+GRAFANA_PUBLIC_URL = os.environ.get("GRAFANA_PUBLIC_URL")  # Browser-facing Grafana URL for UI links
 
 # Feature toggles
 FEATURE_LIVE_SETTINGS_ENABLED = getenv_boolean("FEATURE_LIVE_SETTINGS_ENABLED", default=True)
@@ -107,6 +108,18 @@ ONCALL_BACKEND_REGION = os.environ.get("ONCALL_BACKEND_REGION")
 UNIFIED_SLACK_APP_ENABLED = getenv_boolean("UNIFIED_SLACK_APP_ENABLED", default=False)
 # secret to verify the incoming requests from the chatops-proxy
 CHATOPS_SIGNING_SECRET = os.environ.get("CHATOPS_SIGNING_SECRET", None)
+SHARED_SLACK_PAGING_VERIFY_URL = os.environ.get("SHARED_SLACK_PAGING_VERIFY_URL", "")
+SHARED_SLACK_PUBLISH_VERIFY_URL = os.getenv("SHARED_SLACK_PUBLISH_VERIFY_URL", "")
+SHARED_SLACK_OWNER_VERIFY_URL = os.getenv("SHARED_SLACK_OWNER_VERIFY_URL", "")
+SHARED_SLACK_LINK_VERIFY_URL = os.getenv("SHARED_SLACK_LINK_VERIFY_URL", "")
+SHARED_SLACK_LINKS_VERIFY_URL = os.getenv("SHARED_SLACK_LINKS_VERIFY_URL", "")
+SHARED_SLACK_AVAILABILITY_URL = os.environ.get("SHARED_SLACK_AVAILABILITY_URL", "")
+SHARED_SLACK_PAGING_RESULT_URL = os.environ.get("SHARED_SLACK_PAGING_RESULT_URL", "")
+SHARED_SLACK_BRIDGE_SECRET = os.environ.get("SHARED_SLACK_BRIDGE_SECRET", "")
+SHARED_SLACK_DEFAULT_STACK_ID = os.environ.get("SHARED_SLACK_DEFAULT_STACK_ID", "")
+# Explicit stack -> Grafana org -> OnCall primary-key mapping, owned by deployment.
+# A flat legacy map requires SHARED_SLACK_DEFAULT_STACK_ID.
+SHARED_SLACK_ORG_MAP = json.loads(os.environ.get("SHARED_SLACK_ORG_MAP", "{}"))
 
 # Prometheus exporter metrics endpoint auth
 PROMETHEUS_EXPORTER_SECRET = os.environ.get("PROMETHEUS_EXPORTER_SECRET")
@@ -548,7 +561,12 @@ ALERT_GROUP_ESCALATION_AUDITOR_CELERY_TASK_HEARTBEAT_URL = os.getenv(
 
 CELERY_BEAT_SCHEDULE_FILENAME = os.getenv("CELERY_BEAT_SCHEDULE_FILENAME", "celerybeat-schedule")
 
+CELERY_IMPORTS = tuple(globals().get("CELERY_IMPORTS", ())) + ("apps.slack.paging_outbox",)
 CELERY_BEAT_SCHEDULE = {
+    "recover_shared_slack_paging": {
+        "task": "apps.slack.paging_outbox.recover_shared_paging", "schedule": 15.0,
+        "options": {"queue": "slack"},
+    },
     "start_refresh_ical_final_schedules": {
         "task": "apps.schedules.tasks.refresh_ical_files.start_refresh_ical_final_schedules",
         "schedule": crontab(minute=15, hour=0),

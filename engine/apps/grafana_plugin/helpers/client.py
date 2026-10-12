@@ -110,6 +110,9 @@ class APIClient:
     def api_post(self, endpoint: str, body: typing.Optional[typing.Dict] = None, **kwargs) -> APIClientResponse[_RT]:
         return self.call_api(endpoint, requests.post, body, **kwargs)
 
+    def api_delete(self, endpoint: str, **kwargs) -> APIClientResponse[_RT]:
+        return self.call_api(endpoint, requests.delete, **kwargs)
+
     def api_put(self, endpoint: str, body: typing.Optional[typing.Dict] = None, **kwargs) -> APIClientResponse[_RT]:
         return self.call_api(endpoint, requests.put, body, **kwargs)
 

@@ -1,6 +1,8 @@
 import typing
 from urllib.parse import urljoin
 
+from django.conf import settings
+
 from common.constants.plugin_ids import PluginID
 
 if typing.TYPE_CHECKING:
@@ -13,7 +15,7 @@ class UIURLBuilder:
     """
 
     def __init__(self, organization: "Organization", base_url: typing.Optional[str] = None) -> None:
-        self.base_url = base_url if base_url else organization.grafana_url
+        self.base_url = base_url or settings.GRAFANA_PUBLIC_URL or organization.grafana_url
         self.is_grafana_irm_enabled = organization.is_grafana_irm_enabled
 
     def _build_url(self, page: str, path_extra: str = "", plugin_id: typing.Optional[str] = None) -> str:

@@ -25,6 +25,7 @@ def test_send_message_to_thread_if_bot_not_in_channel(
     make_organization,
     make_alert_receive_channel,
     make_alert_group,
+    make_slack_message,
     channel_members,
 ):
     mock_get_conversation_members.return_value = channel_members
@@ -36,10 +37,12 @@ def test_send_message_to_thread_if_bot_not_in_channel(
 
     alert_receive_channel = make_alert_receive_channel(organization)
     alert_group = make_alert_group(alert_receive_channel)
+    make_slack_message(slack_channel, alert_group=alert_group, slack_id="123.4")
 
     send_message_to_thread_if_bot_not_in_channel(alert_group.pk, slack_team_identity.pk, slack_channel.pk)
 
-    MockSlackClient.assert_called_once_with(slack_team_identity, enable_ratelimit_retry=True)
+    MockSlackClient.assert_called_once_with(slack_team_identity, enable_ratelimit_retry=True,
+        source_owner=None, source_organization=organization)
     mock_get_conversation_members.assert_called_once_with(MockSlackClient.return_value, slack_channel.pk)
 
     if BOT_USER_ID not in channel_members:
@@ -67,6 +70,7 @@ def test_send_message_to_thread_if_bot_not_in_channel_slack_api_rate_limit_error
     make_organization,
     make_alert_receive_channel,
     make_alert_group,
+    make_slack_message,
 ):
     mock_send_message_to_thread_if_bot_not_in_channel_retry.side_effect = exceptions.Retry()
     mock_get_conversation_members.return_value = ["U0909090"]
@@ -84,6 +88,7 @@ def test_send_message_to_thread_if_bot_not_in_channel_slack_api_rate_limit_error
 
     alert_receive_channel = make_alert_receive_channel(organization)
     alert_group = make_alert_group(alert_receive_channel)
+    make_slack_message(slack_channel, alert_group=alert_group, slack_id="123.4")
 
     with pytest.raises(exceptions.Retry):
         send_message_to_thread_if_bot_not_in_channel(alert_group.pk, slack_team_identity.pk, slack_channel.pk)

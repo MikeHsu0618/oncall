@@ -128,6 +128,10 @@ class AlertGroupSlackRenderer(AlertGroupBaseRenderer):
                 attachments[0]["color"] = "good"
                 attachments[0]["actions"] = []
 
+            assistant_buttons = self._get_assistant_buttons()
+            if assistant_buttons:
+                attachments.append({"blocks": [{"type": "actions", "elements": assistant_buttons}]})
+
             return attachments
 
         # Attaching resolve information
@@ -175,6 +179,13 @@ class AlertGroupSlackRenderer(AlertGroupBaseRenderer):
     def _get_buttons_attachments(self):
         attachment = {"blocks": self._get_buttons_blocks()}
         return attachment
+
+    def _get_assistant_buttons(self):
+        from apps.slack.assistant import assistant_available, investigation_button
+
+        if self.alert_group.wiped_at is None and assistant_available(self.alert_group.channel.organization):
+            return [investigation_button(self.alert_group)]
+        return []
 
     def _get_buttons_blocks(self):
         from apps.alerts.models import AlertGroup
@@ -281,6 +292,8 @@ class AlertGroupSlackRenderer(AlertGroupBaseRenderer):
                 buttons.append(resolve_button)
 
         buttons.append(show_timeline_button)
+
+        buttons.extend(self._get_assistant_buttons())
 
         return [{"type": "actions", "elements": buttons}]
 

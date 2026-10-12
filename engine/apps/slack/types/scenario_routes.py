@@ -20,6 +20,10 @@ class ScenarioRoute:
         block_action_type: "BlockActionType"
         block_action_id: str
 
+    class BlockSuggestionScenarioRoute(_Base):
+        payload_type: typing.Literal[PayloadType.BLOCK_SUGGESTION]
+        block_suggestion_action_id: str
+
     class EventCallbackScenarioRoute(_Base):
         payload_type: typing.Literal[PayloadType.EVENT_CALLBACK]
         event_type: EventType
@@ -44,6 +48,7 @@ class ScenarioRoute:
 
     RoutingStep = (
         BlockActionsScenarioRoute
+        | BlockSuggestionScenarioRoute
         | EventCallbackScenarioRoute
         | InteractiveMessageScenarioRoute
         | MessageActionScenarioRoute

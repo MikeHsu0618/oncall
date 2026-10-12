@@ -27,3 +27,8 @@ urlpatterns = [
     path("signup_redirect/", SignupRedirectView.as_view()),
     path("signup_redirect/<str:subscription>/<str:utm>/", SignupRedirectView.as_view()),
 ]
+
+# Service-only adapter; no OAuth or browser identity is accepted here.
+from .shared_app import SharedSlackAppView
+
+urlpatterns.append(path("shared-app/v1/", SharedSlackAppView.as_view()))

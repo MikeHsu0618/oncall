@@ -7,6 +7,7 @@ class PayloadType(enum.StrEnum):
     SLASH_COMMAND = "slash_command"
     EVENT_CALLBACK = "event_callback"
     BLOCK_ACTIONS = "block_actions"
+    BLOCK_SUGGESTION = "block_suggestion"
     DIALOG_SUBMISSION = "dialog_submission"
     VIEW_SUBMISSION = "view_submission"
     MESSAGE_ACTION = "message_action"

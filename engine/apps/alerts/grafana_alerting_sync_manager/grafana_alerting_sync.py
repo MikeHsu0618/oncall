@@ -140,9 +140,18 @@ class GrafanaAlertingSyncManager:
             if not receiver_found:
                 return False, "Contact point was not found"
 
-        response = self.update_alerting_config_for_datasource(self.client, datasource_uid, config, updated_config)
-        if response is None:
-            return False, "Failed to update Alertmanager config"
+        if is_grafana_datasource:
+            # Grafana 13 no longer accepts the legacy whole Alertmanager config
+            # POST. Its contact point provisioning API adds an integration to
+            # an existing name, and also creates a new named contact point.
+            payload = {key: value for key, value in oncall_config.items() if key != "secureFields"}
+            _, response_info = self.client.api_post("api/v1/provisioning/contact-points", payload)
+            if response_info["status_code"] not in (status.HTTP_200_OK, status.HTTP_201_CREATED, status.HTTP_202_ACCEPTED):
+                return False, "Failed to update Grafana contact point"
+        else:
+            response = self.update_alerting_config_for_datasource(self.client, datasource_uid, config, updated_config)
+            if response is None:
+                return False, "Failed to update Alertmanager config"
         return True, ""
 
     def disconnect_contact_point(self, datasource_uid: str, contact_point_name: str) -> Tuple[bool, str]:
@@ -168,6 +177,8 @@ class GrafanaAlertingSyncManager:
             return False, "Contact point was not found"
         elif not receiver_found:
             return False, "OnCall connection was not found in selected contact point"
+        if is_grafana_datasource:
+            return self._delete_grafana_contact_point_connection(contact_point_name)
         response = self.update_alerting_config_for_datasource(self.client, datasource_uid, config, updated_config)
         if response is None:
             return False, "Failed to update Alertmanager config"
@@ -185,6 +196,9 @@ class GrafanaAlertingSyncManager:
         for datasource in datasources:
             datasource_uid = datasource["uid"]
             is_grafana_datasource = datasource_uid == self.GRAFANA_ALERTING_DATASOURCE
+            if is_grafana_datasource:
+                self._delete_grafana_contact_point_connection(None)
+                continue
             config = self.get_alerting_config_for_datasource(self.client, datasource_uid)
             if config is None:
                 continue
@@ -195,6 +209,24 @@ class GrafanaAlertingSyncManager:
             self._remove_integration_config_from_each_contact_point(is_grafana_datasource, alertmanager_config)
             self.update_alerting_config_for_datasource(self.client, datasource_uid, config, updated_config)
         return
+
+    def _delete_grafana_contact_point_connection(self, contact_point_name: str | None) -> Tuple[bool, str]:
+        points, response_info = self.client.api_get("api/v1/provisioning/contact-points")
+        if response_info["status_code"] != status.HTTP_200_OK or not isinstance(points, list):
+            return False, "Failed to list Grafana contact points"
+        matches = [
+            point for point in points
+            if (contact_point_name is None or point.get("name") == contact_point_name)
+            and point.get("type") in ("webhook", "oncall")
+            and point.get("settings", {}).get("url") == self.integration_url
+        ]
+        if not matches:
+            return False, "OnCall connection was not found in selected contact point"
+        for point in matches:
+            _, response_info = self.client.api_delete(f"api/v1/provisioning/contact-points/{point['uid']}")
+            if response_info["status_code"] not in (status.HTTP_200_OK, status.HTTP_202_ACCEPTED, status.HTTP_204_NO_CONTENT):
+                return False, "Failed to update Grafana contact point"
+        return True, ""
 
     # API requests to get/update Alertmanager config
     @classmethod

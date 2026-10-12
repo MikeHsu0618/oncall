@@ -2,14 +2,17 @@ import gzip
 import json
 import logging
 from dataclasses import asdict, is_dataclass
+from hmac import compare_digest
 
 from django.conf import settings
+from django.db import transaction
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.auth_token.auth import BasePluginAuthentication
+from apps.auth_token.models import PluginAuthToken
 from apps.grafana_plugin.serializers.sync_data import SyncDataSerializer
 from apps.user_management.models import Organization
 from apps.user_management.sync import apply_sync_data, get_or_create_organization
@@ -41,6 +44,8 @@ class SyncV2View(APIView):
         sync_data = serializer.save()
 
         if settings.LICENSE == settings.OPEN_SOURCE_LICENSE_NAME:
+            if self.authentication_classes:
+                return self._sync_authenticated_oss(request.auth, sync_data)
             stack_id = settings.SELF_HOSTED_SETTINGS["STACK_ID"]
             org_id = settings.SELF_HOSTED_SETTINGS["ORG_ID"]
         else:
@@ -51,6 +56,30 @@ class SyncV2View(APIView):
             raise SyncException(INVALID_SELF_HOSTED_ID)
 
         organization = get_or_create_organization(sync_data.settings.org_id, sync_data.settings.stack_id, sync_data)
+        apply_sync_data(organization, sync_data)
+        return organization
+
+    @transaction.atomic
+    def _sync_authenticated_oss(self, authenticated, sync_data) -> Organization:
+        # The original authenticated token selects an existing organization.
+        # The unauthenticated install subclass retains the global OSS tuple.
+        if not isinstance(authenticated, PluginAuthToken):
+            raise SyncException(INVALID_SELF_HOSTED_ID)
+        token = PluginAuthToken.objects.select_for_update().filter(pk=authenticated.pk).first()
+        if token is None or (token.digest, token.salt, token.organization_id) != (
+            authenticated.digest, authenticated.salt, authenticated.organization_id
+        ):
+            raise SyncException(INVALID_SELF_HOSTED_ID)
+        organization = Organization.objects.select_for_update().filter(pk=token.organization_id).first()
+        if organization is None or organization.is_moved:
+            raise SyncException(INVALID_SELF_HOSTED_ID)
+        selected = sync_data.settings
+        if (
+            (selected.stack_id, selected.org_id) != (organization.stack_id, organization.org_id)
+            or selected.grafana_url != organization.grafana_url.rstrip("/")
+            or not compare_digest(selected.grafana_token.encode(), organization.api_token.encode())
+        ):
+            raise SyncException(INVALID_SELF_HOSTED_ID)
         apply_sync_data(organization, sync_data)
         return organization
 

@@ -15,6 +15,7 @@ from apps.alerts.tasks.send_update_log_report_signal import send_update_log_repo
 from apps.base.messaging import get_messaging_backend_from_id
 from apps.metrics_exporter.tasks import update_metrics_for_user
 from apps.phone_notifications.phone_backend import PhoneBackend
+from apps.slack.client import SharedMutationUnknown
 from common.custom_celery_tasks import shared_dedicated_queue_retry_task
 
 from .task_logger import task_logger
@@ -93,7 +94,7 @@ def update_metric_if_needed(user: "User", active_alert_group_ids: typing.List[in
 
 
 @shared_dedicated_queue_retry_task(
-    autoretry_for=(Exception,), retry_backoff=True, max_retries=1 if settings.DEBUG else None
+    autoretry_for=(Exception,), dont_autoretry_for=(SharedMutationUnknown,), retry_backoff=True, max_retries=1 if settings.DEBUG else None
 )
 def notify_user_task(
     user_pk,
@@ -104,6 +105,7 @@ def notify_user_task(
     notify_even_acknowledged=False,
     important=False,
     notify_anyway=False,
+    force_default_fallback=False,
 ):
     from apps.alerts.models import AlertGroup, AlertGroupLogRecord, UserHasNotification, UserNotificationBundle
     from apps.base.models import UserNotificationPolicy, UserNotificationPolicyLogRecord
@@ -146,10 +148,14 @@ def notify_user_task(
         using_fallback_default_notification_policy_step = False
 
         if previous_notification_policy_pk is None:
-            (
-                using_fallback_default_notification_policy_step,
-                notification_policies,
-            ) = user.get_notification_policies_or_use_default_fallback(important=important)
+            if force_default_fallback:
+                using_fallback_default_notification_policy_step = True
+                notification_policies = [user.get_default_fallback_notification_policy()]
+            else:
+                (
+                    using_fallback_default_notification_policy_step,
+                    notification_policies,
+                ) = user.get_notification_policies_or_use_default_fallback(important=important)
             if not notification_policies:
                 task_logger.info(
                     f"notify_user_task: Failed to notify. No notification policies. user_id={user_pk} alert_group_id={alert_group_pk} important={important}"
@@ -369,7 +375,7 @@ def notify_user_task(
 @shared_dedicated_queue_retry_task(
     autoretry_for=(Exception,),
     retry_backoff=True,
-    dont_autoretry_for=(Retry,),
+    dont_autoretry_for=(Retry, SharedMutationUnknown),
     max_retries=1 if settings.DEBUG else None,
 )
 def perform_notification(log_record_pk, use_default_notification_policy_fallback):
@@ -591,7 +597,7 @@ def perform_notification(log_record_pk, use_default_notification_policy_fallback
 
 
 @shared_dedicated_queue_retry_task(
-    autoretry_for=(Exception,), retry_backoff=True, max_retries=1 if settings.DEBUG else None
+    autoretry_for=(Exception,), dont_autoretry_for=(SharedMutationUnknown,), retry_backoff=True, max_retries=1 if settings.DEBUG else None
 )
 def send_bundled_notification(user_notification_bundle_id: int):
     """
@@ -721,7 +727,7 @@ def send_bundled_notification(user_notification_bundle_id: int):
 
 # deprecated
 @shared_dedicated_queue_retry_task(
-    autoretry_for=(Exception,), retry_backoff=True, max_retries=0 if settings.DEBUG else None
+    autoretry_for=(Exception,), dont_autoretry_for=(SharedMutationUnknown,), retry_backoff=True, max_retries=0 if settings.DEBUG else None
 )
 def send_user_notification_signal(log_record_pk):
     # Triggers user_notification_action_triggered_signal

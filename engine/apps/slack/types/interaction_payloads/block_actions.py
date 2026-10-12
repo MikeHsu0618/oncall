@@ -16,6 +16,7 @@ class BlockActionType(enum.StrEnum):
     USERS_SELECT = "users_select"
     BUTTON = "button"
     STATIC_SELECT = "static_select"
+    EXTERNAL_SELECT = "external_select"
     CONVERSATIONS_SELECT = "conversations_select"
     CHANNELS_SELECT = "channels_select"
     OVERFLOW = "overflow"

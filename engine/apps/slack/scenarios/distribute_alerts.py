@@ -20,6 +20,8 @@ from apps.slack.errors import (
     SlackAPITokenError,
 )
 from apps.slack.models import SlackTeamIdentity, SlackUserIdentity
+from apps.slack.shared_owner import SharedOwnerError
+from apps.slack.client import SharedMutationUnknown
 from apps.slack.scenarios import scenario_step
 from apps.slack.slack_formatter import SlackFormatter
 from apps.slack.tasks import send_message_to_thread_if_bot_not_in_channel
@@ -119,6 +121,9 @@ class IncomingAlertStep(scenario_step.ScenarioStep):
             ).update(slack_message_sent=True, reason_to_skip_escalation=AlertGroup.RATE_LIMITED)
             return
 
+        # Refuse before reserving a native post when no current shared owner can
+        # be proved. The final physical send repeats this outside SQL.
+        self._slack_client.require_shared_admission()
         num_updated_rows = AlertGroup.objects.filter(pk=alert_group_pk, slack_message_sent=False).update(
             slack_message_sent=True
         )
@@ -158,20 +163,26 @@ class IncomingAlertStep(scenario_step.ScenarioStep):
                     blocks=alert_group.render_slack_blocks(),
                 )
 
-                alert_group.slack_messages.create(
-                    slack_id=result["ts"],
-                    _slack_team_identity=slack_team_identity,
-                    channel=slack_channel,
-                )
+                try:
+                    alert_group.slack_messages.create(
+                        slack_id=result["ts"],
+                        source_owner=self._slack_client.shared_source_owner(),
+                        _slack_team_identity=slack_team_identity,
+                        channel=slack_channel,
+                    )
 
-                alert.delivered = True
-                alert.save()
-            except (SlackAPIError, TimeoutError) as e:
+                    alert.delivered = True
+                    alert.save()
+                except Exception:
+                    if self._slack_client._shared:
+                        raise SharedMutationUnknown() from None
+                    raise
+            except (SlackAPIError, TimeoutError, SharedOwnerError) as e:
                 reason_to_skip_escalation: typing.Optional[int] = None
                 extra_log_msg: typing.Optional[str] = None
                 reraise_exception = False
 
-                if isinstance(e, TimeoutError):
+                if isinstance(e, (TimeoutError, SharedOwnerError)):
                     reraise_exception = True
                 elif isinstance(e, SlackAPIRatelimitError):
                     extra_log_msg = "not delivering alert due to slack rate limit"
@@ -390,6 +401,7 @@ class UnSilenceGroupStep(AlertGroupActionsMixin, scenario_step.ScenarioStep):
 
 
 class SelectAttachGroupStep(AlertGroupActionsMixin, scenario_step.ScenarioStep):
+    shared_loading_operation = 'open'
     REQUIRED_PERMISSIONS = [RBACPermission.Permissions.ALERT_GROUPS_WRITE]
 
     def process_scenario(

@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 import responses
@@ -69,6 +70,14 @@ def test_declare_incident_default_route(setup_alert_group_and_escalation_step):
     assert log_record.step_specific_info is None
     assert log_record.reason == "Declare incident step is not enabled for default routes"
     assert log_record.escalation_error_code == AlertGroupLogRecord.ERROR_ESCALATION_INCIDENT_COULD_NOT_BE_DECLARED
+
+
+@pytest.mark.django_db
+def test_alert_group_declare_link_opens_modal(setup_alert_group_and_escalation_step):
+    alert_group, _, _ = setup_alert_group_and_escalation_step()
+    query = parse_qs(urlparse(alert_group.declare_incident_link).query)
+    assert query["declare"] == ["new"]
+    assert query["url"] == [alert_group.web_link]
 
 
 @pytest.mark.django_db

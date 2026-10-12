@@ -6,13 +6,14 @@ from uuid import uuid4
 
 from django.conf import settings
 from django.db.models import Model, QuerySet
+from django.utils import timezone
 from rest_framework.response import Response
 
 from apps.alerts.models import AlertReceiveChannel
 from apps.alerts.paging import DirectPagingUserTeamValidationError, UserNotifications, direct_paging, user_is_oncall
 from apps.api.permissions import RBACPermission, user_is_authorized
-from apps.grafana_plugin.ui_url_builder import UIURLBuilder
 from apps.schedules.ical_utils import get_cached_oncall_users_for_multiple_schedules
+from apps.grafana_plugin.ui_url_builder import UIURLBuilder
 from apps.slack.chatops_proxy_routing import make_private_metadata, make_value
 from apps.slack.constants import DIVIDER, PRIVATE_METADATA_MAX_LENGTH
 from apps.slack.errors import SlackAPIChannelNotFoundError, SlackAPIError
@@ -181,6 +182,23 @@ class StartDirectPaging(scenario_step.ScenarioStep):
                     )
                     return
 
+        from apps.slack.paging_commands import command_target, execute_target
+
+        try:
+            target = command_target(payload)
+            if target:
+                organization = predefined_org
+                available = _get_available_organizations(slack_team_identity, slack_user_identity)
+                if organization is None:
+                    if available.count() != 1:
+                        return Response({"response_type": "ephemeral", "text": "Select a Grafana stack before escalating."})
+                    organization = available.first()
+                if not available.filter(pk=organization.pk).exists():
+                    return Response(status=403)
+                return execute_target(organization, slack_team_identity, slack_user_identity, payload, target)
+        except ValueError as error:
+            return Response({"response_type": "ephemeral", "text": str(error)})
+
         private_metadata = {
             "channel_id": channel_id,
             "input_id_prefix": input_id_prefix,
@@ -243,6 +261,9 @@ class FinishDirectPaging(scenario_step.ScenarioStep):
             for u, p in get_current_items(payload, DataKey.USERS, selected_organization.users)
         ]
 
+        # Capture the original writer boundary. Completion notices may only
+        # use its newly committed returned outcome, never an arbitrary group.
+        writer_started = timezone.now()
         # trigger direct paging to selected team + users
         try:
             alert_group = direct_paging(
@@ -279,19 +300,28 @@ class FinishDirectPaging(scenario_step.ScenarioStep):
             )
 
         text = f":white_check_mark: Escalation created: {alert_group.web_link}"
-
+        from apps.slack.shared_owner import SharedOwnerError
+        client = getattr(self._slack_client, "client", self._slack_client)
         try:
-            self._slack_client.chat_postEphemeral(
-                channel=channel_id,
-                user=slack_user_identity.slack_id,
-                text=text,
-            )
-        except SlackAPIChannelNotFoundError:
-            self._slack_client.chat_postEphemeral(
-                channel=slack_user_identity.im_channel_id,
-                user=slack_user_identity.slack_id,
-                text=text,
-            )
+            if client._shared:
+                from apps.slack.shared_owner import SharedPagingCompletion
+                completion = SharedPagingCompletion._from_original_finish(client._shared_owner,
+                    user, slack_user_identity, alert_group, payload, writer_started)
+                client.bind_completion_recipient(completion)
+                text = completion.text
+                channel_id = completion.channel_id
+            try:
+                self._slack_client.chat_postEphemeral(channel=channel_id, user=slack_user_identity.slack_id, text=text)
+            except SlackAPIChannelNotFoundError:
+                # The escalation is already committed. Reuse its original
+                # asking client/link, without notification-role requirements.
+                self._slack_client.chat_postEphemeral(
+                    channel=slack_user_identity.get_im_channel_id(client=client) if client._shared else slack_user_identity.im_channel_id,
+                    user=slack_user_identity.slack_id, text=text,
+                )
+        except SharedOwnerError:
+            # Known paging success must never repeat to deliver a notice.
+            return
 
 
 # OnChange steps, responsible for rerendering form on changed values
@@ -347,6 +377,7 @@ class OnPagingUserChange(scenario_step.ScenarioStep):
 
     It will check to see if the user is on-call, pushing a new modal for additional confirmation if needed.
     """
+    shared_loading_operation = 'push'
 
     def process_scenario(
         self,
@@ -476,6 +507,16 @@ class OnPagingConfirmUserChange(scenario_step.ScenarioStep):
             view=view,
             view_id=payload["view"]["previous_view_id"],
         )
+
+
+class OnPagingSearch(scenario_step.ScenarioStep):
+    """Read-only options load; the original selection steps still own paging."""
+
+    REQUIRED_PERMISSIONS = [RBACPermission.Permissions.ALERT_GROUPS_DIRECT_PAGING]
+
+    def process_scenario(self, slack_user_identity, slack_team_identity, payload, predefined_org=None):
+        from apps.slack.paging_options import search_targets
+        return Response(search_targets(self.organization, payload))
 
 
 # slack view/blocks rendering helpers
@@ -718,11 +759,7 @@ def _get_team_select_blocks(
 ) -> Block.AnyBlocks:
     blocks: Block.AnyBlocks = []
     user = slack_user_identity.get_user(organization)  # TODO: handle None
-    teams = (
-        user.organization.get_notifiable_direct_paging_integrations()
-        .filter(team__isnull=False)
-        .values_list("team__pk", "team__name")
-    )
+    teams_exist = user.organization.teams.exists()
 
     direct_paging_info_msg = {
         "type": "context",
@@ -730,38 +767,19 @@ def _get_team_select_blocks(
             {
                 "type": "mrkdwn",
                 "text": (
-                    "*Note*: You can only page teams which have a Direct Paging integration that is configured. "
-                    "<https://grafana.com/docs/oncall/latest/integrations/manual/#set-up-direct-paging-for-a-team|Learn more>"
+                    "*Note*: Teams without an escalation chain notify all members using the default fallback policy. "
+                    "<https://grafana.com/docs/grafana-cloud/observe-and-act/respond-to-incidents/integrations/alert-sources/manual/|Learn more>"
                 ),
             },
         ],
     }
 
-    if not teams:
+    if not teams_exist:
         direct_paging_info_msg["elements"][0][
             "text"
-        ] += ".\n\nThere are currently no teams which have a Direct Paging integration that is configured."
+        ] += ".\n\nThere are currently no teams in this stack."
         blocks.append(direct_paging_info_msg)
         return blocks
-
-    team_options: typing.List[CompositionObjectOption] = []
-
-    initial_option_idx = 0
-    for idx, team in enumerate(teams):
-        team_pk, team_name = team
-
-        if value and value.pk == team_pk:
-            initial_option_idx = idx
-        team_options.append(
-            {
-                "text": {
-                    "type": "plain_text",
-                    "text": team_name,
-                    "emoji": True,
-                },
-                "value": make_value({"id": team_pk}, organization),
-            }
-        )
 
     team_select: Block.Input = {
         "type": "input",
@@ -771,10 +789,10 @@ def _get_team_select_blocks(
             "text": "Team to notify",
         },
         "element": {
-            "type": "static_select",
+            "type": "external_select",
             "action_id": OnPagingTeamChange.routing_uid(),
-            "placeholder": {"type": "plain_text", "text": "Select team", "emoji": True},
-            "options": team_options,
+            "placeholder": {"type": "plain_text", "text": "Search all teams", "emoji": True},
+            "min_query_length": 0,
         },
         "dispatch_action": True,
         "optional": True,
@@ -787,7 +805,10 @@ def _get_team_select_blocks(
         blocks.append(direct_paging_info_msg)
         return blocks
 
-    team_select["element"]["initial_option"] = team_options[initial_option_idx]
+    from apps.slack.paging_options import target_option
+    if value is None or value.organization_id != organization.pk:
+        raise ValueError("Selected paging team is no longer available")
+    team_select["element"]["initial_option"] = target_option(value, organization)
 
     alert_receive_channel = AlertReceiveChannel.objects.filter(
         organization=organization,
@@ -801,7 +822,8 @@ def _get_team_select_blocks(
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": f"Integration <{alert_receive_channel.web_link}|{alert_receive_channel.verbal_name}> will be used for notification.",
+                    "text": (f"Integration <{alert_receive_channel.web_link}|{alert_receive_channel.verbal_name}> will be used for notification."
+                             if alert_receive_channel else "A Direct Paging integration will be created. Without an escalation chain, all team members use the default fallback policy."),
                 },
             ],
         }
@@ -934,7 +956,7 @@ def _get_user_select_blocks(
             ),
         ]
 
-    blocks.append(_get_users_select(organization, input_id_prefix, OnPagingUserChange.routing_uid()))
+    blocks.append(_get_paging_users_select(organization, input_id_prefix, OnPagingUserChange.routing_uid()))
 
     # selected items
     if selected_users := get_current_items(payload, DataKey.USERS, organization.users):
@@ -972,6 +994,30 @@ def _get_users_select(
             "action_id": action_id,
             "placeholder": {"type": "plain_text", "text": "Select user", "emoji": True},
             "option_groups": oncall_user_option_groups + not_oncall_user_option_groups,
+        },
+        "dispatch_action": True,
+        "optional": True,
+    }
+
+
+
+def _get_paging_users_select(
+    organization: "Organization", input_id_prefix: str, action_id: str, max_options_per_group=MAX_STATIC_SELECT_OPTIONS
+) -> Block.Context | Block.Input:
+    if not organization.users.exists():
+        return {"type": "context", "elements": [{"type": "mrkdwn", "text": "No users available"}]}
+    return {
+        "type": "input",
+        "block_id": input_id_prefix + DIRECT_PAGING_USER_SELECT_ID,
+        "label": {
+            "type": "plain_text",
+            "text": "User(s) to notify",
+        },
+        "element": {
+            "type": "external_select",
+            "action_id": action_id,
+            "placeholder": {"type": "plain_text", "text": "Search users", "emoji": True},
+            "min_query_length": 0,
         },
         "dispatch_action": True,
         "optional": True,
@@ -1093,7 +1139,7 @@ def _get_message_input(payload: EventPayload) -> Block.Input:
                 "text": " ",
             },
         },
-        "optional": False,
+        "optional": True,
     }
     if payload.get("message", {}).get("text") is not None:
         message_input_block["element"]["initial_value"] = payload["message"]["text"]
@@ -1127,6 +1173,29 @@ def _generate_input_id_prefix() -> str:
 
 
 STEPS_ROUTING: ScenarioRoute.RoutingSteps = [
+    {
+        "payload_type": PayloadType.BLOCK_SUGGESTION,
+        "block_suggestion_action_id": OnPagingTeamChange.routing_uid(),
+        "step": OnPagingSearch,
+    },
+    {
+        "payload_type": PayloadType.BLOCK_ACTIONS,
+        "block_action_type": BlockActionType.EXTERNAL_SELECT,
+        "block_action_id": OnPagingTeamChange.routing_uid(),
+        "step": OnPagingTeamChange,
+    },
+    {
+        "payload_type": PayloadType.BLOCK_SUGGESTION,
+        "block_suggestion_action_id": OnPagingUserChange.routing_uid(),
+        "step": OnPagingSearch,
+    },
+    {
+        "payload_type": PayloadType.BLOCK_ACTIONS,
+        "block_action_type": BlockActionType.EXTERNAL_SELECT,
+        "block_action_id": OnPagingUserChange.routing_uid(),
+        "step": OnPagingUserChange,
+    },
+
     {
         "payload_type": PayloadType.BLOCK_ACTIONS,
         "block_action_type": BlockActionType.STATIC_SELECT,

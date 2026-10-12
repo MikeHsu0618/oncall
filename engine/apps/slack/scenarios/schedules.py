@@ -24,6 +24,7 @@ if typing.TYPE_CHECKING:
 
 
 class EditScheduleShiftNotifyStep(scenario_step.ScenarioStep):
+    shared_loading_operation = 'open'
     notify_empty_oncall_options = {choice[0]: choice[1] for choice in OnCallSchedule.NotifyEmptyOnCall.choices}
     notify_oncall_shift_freq_options = {choice[0]: choice[1] for choice in OnCallSchedule.NotifyOnCallShiftFreq.choices}
     mention_oncall_start_options = {1: "Mention person in Slack", 0: "Inform in channel without mention"}

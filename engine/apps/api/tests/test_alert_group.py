@@ -2076,6 +2076,28 @@ def test_grouped_alerts(
 
 
 @pytest.mark.django_db
+def test_alert_group_detail_includes_last_raw_alert_for_investigation(
+    make_organization_and_user_with_plugin_token,
+    make_alert_receive_channel,
+    make_alert_group,
+    make_alert,
+    make_user_auth_headers,
+):
+    organization, user, token = make_organization_and_user_with_plugin_token()
+    channel = make_alert_receive_channel(organization)
+    group = make_alert_group(channel)
+    raw = {"alerts": [{"annotations": {"__enriched_assistant_investigation_link": "https://grafana.test/a/grafana-assistant-app/investigations/example"}}]}
+    alert = make_alert(alert_group=group, raw_request_data=raw)
+
+    client = APIClient()
+    url = reverse("api-internal:alertgroup-detail", kwargs={"pk": group.public_primary_key})
+    response = client.get(url, **make_user_auth_headers(user, token))
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["last_alert"] == {"id": alert.public_primary_key, "raw_request_data": raw}
+
+
+@pytest.mark.django_db
 def test_alert_group_paged_users(
     make_user_for_organization,
     make_user_auth_headers,

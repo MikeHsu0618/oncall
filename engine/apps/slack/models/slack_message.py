@@ -8,7 +8,8 @@ from django.core.cache import cache
 from django.db import models
 from django.utils import timezone
 
-from apps.slack.client import SlackClient
+from apps.slack.client import SlackClient, SharedMutationUnknown
+from apps.slack.shared_owner import SharedOwnerError
 from apps.slack.constants import BLOCK_SECTION_TEXT_MAX_SIZE
 from apps.slack.errors import (
     SlackAPIChannelArchivedError,
@@ -69,6 +70,7 @@ class SlackMessage(models.Model):
 
     cached_permalink = models.URLField(max_length=250, null=True, default=None)
 
+    source_owner = models.JSONField(null=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True)
     last_updated = models.DateTimeField(null=True, default=None)
 
@@ -100,7 +102,8 @@ class SlackMessage(models.Model):
             return self.cached_permalink
 
         try:
-            result = SlackClient(self.slack_team_identity).chat_getPermalink(
+            result = SlackClient(self.slack_team_identity, source_owner=self.source_owner,
+                source_organization=self.alert_group.channel.organization if self.alert_group else None).chat_getPermalink(
                 channel=self.channel.slack_id,
                 message_ts=self.slack_id,
             )
@@ -168,9 +171,12 @@ class SlackMessage(models.Model):
             }
         ]
 
-        sc = SlackClient(slack_team_identity, enable_ratelimit_retry=True)
+        sc = SlackClient(slack_team_identity, enable_ratelimit_retry=True,
+            source_owner=slack_message.source_owner, source_organization=alert_group.channel.organization)
 
         try:
+            if sc._shared:
+                sc.bind_notification_recipient(user, slack_message)
             result = sc.chat_postMessage(
                 channel=channel_id,
                 text=text,
@@ -178,6 +184,14 @@ class SlackMessage(models.Model):
                 thread_ts=slack_message.slack_id,
                 unfurl_links=True,
             )
+        except SharedOwnerError:
+            UserNotificationPolicyLogRecord.objects.create(author=user,
+                type=UserNotificationPolicyLogRecord.TYPE_PERSONAL_NOTIFICATION_FAILED,
+                notification_policy=notification_policy, alert_group=alert_group,
+                reason="Shared Slack recipient is unavailable",
+                notification_step=notification_policy.step, notification_channel=notification_policy.notify_by,
+                notification_error_code=UserNotificationPolicyLogRecord.ERROR_NOTIFICATION_IN_SLACK_USER_NOT_IN_SLACK)
+            return
         except SlackAPIRatelimitError:
             UserNotificationPolicyLogRecord(
                 author=user,
@@ -215,21 +229,27 @@ class SlackMessage(models.Model):
             ).save()
             return
         else:
-            alert_group.slack_messages.create(
-                slack_id=result["ts"],
-                _slack_team_identity=slack_team_identity,
-                channel=slack_channel,
-            )
+            try:
+                alert_group.slack_messages.create(
+                    slack_id=result["ts"],
+                    source_owner=sc.shared_source_owner(),
+                    _slack_team_identity=slack_team_identity,
+                    channel=slack_channel,
+                )
 
-            # create success record
-            UserNotificationPolicyLogRecord.objects.create(
-                author=user,
-                type=UserNotificationPolicyLogRecord.TYPE_PERSONAL_NOTIFICATION_SUCCESS,
-                notification_policy=notification_policy,
-                alert_group=alert_group,
-                notification_step=notification_policy.step,
-                notification_channel=notification_policy.notify_by,
-            )
+                # create success record
+                UserNotificationPolicyLogRecord.objects.create(
+                    author=user,
+                    type=UserNotificationPolicyLogRecord.TYPE_PERSONAL_NOTIFICATION_SUCCESS,
+                    notification_policy=notification_policy,
+                    alert_group=alert_group,
+                    notification_step=notification_policy.step,
+                    notification_channel=notification_policy.notify_by,
+                )
+            except Exception:
+                if sc._shared:
+                    raise SharedMutationUnknown() from None
+                raise
 
         # Check if escalated user is in channel. Otherwise send notification and request to invite him.
         try:
@@ -242,7 +262,15 @@ class SlackMessage(models.Model):
 
                 if slack_user_identity.slack_id not in channel_members:
                     time.sleep(5)  # 2 messages in the same moment are ratelimited by Slack. Dirty hack.
-                    slack_user_identity.send_link_to_slack_message(slack_message)
+                    if sc._shared:
+                        slack_user_identity.send_link_to_slack_message(slack_message, user=user, client=sc)
+                    else:
+                        slack_user_identity.send_link_to_slack_message(slack_message)
+        except SharedOwnerError:
+            # The original targeted thread post is already a known success.
+            # Withdrawal before the optional DM suppresses only that remaining
+            # work, rather than retrying the committed thread notification.
+            return
         except (SlackAPITokenError, SlackAPIMethodNotSupportedForChannelTypeError):
             pass
 

@@ -31,6 +31,7 @@ ALERT_GROUP_DATA_KEY = "alert_group_pk"
 
 class StartManageResponders(AlertGroupActionsMixin, scenario_step.ScenarioStep):
     """Handle "Responders" button click."""
+    shared_loading_operation = 'open'
 
     def process_scenario(
         self,
@@ -50,6 +51,7 @@ class StartManageResponders(AlertGroupActionsMixin, scenario_step.ScenarioStep):
 
 class ManageRespondersUserChange(scenario_step.ScenarioStep):
     """Handle user selection in responders modal."""
+    shared_loading_operation = 'push'
 
     def process_scenario(
         self,

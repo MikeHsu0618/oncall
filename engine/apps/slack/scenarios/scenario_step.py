@@ -5,6 +5,8 @@ import typing
 from apps.api.permissions import LegacyAccessControlCompatiblePermissions, user_is_authorized
 from apps.slack.alert_group_slack_service import AlertGroupSlackService
 from apps.slack.client import SlackClient
+from apps.slack.errors import SlackAPIError
+from apps.slack.shared_owner import selected_shared_delivery, selected_loading_view, _slack
 from apps.slack.types import EventPayload
 
 if typing.TYPE_CHECKING:
@@ -23,7 +25,7 @@ class ScenarioStep(object):
         organization: typing.Optional["Organization"] = None,
         user: typing.Optional["User"] = None,
     ):
-        self._slack_client = SlackClient(slack_team_identity)
+        self._slack_client = SlackClient(slack_team_identity, source_organization=organization)
         self.slack_team_identity = slack_team_identity
         self.organization = organization
         self.user = user
@@ -80,6 +82,29 @@ class ScenarioStep(object):
             raise Exception("Check import spelling! Scenario: {}, Step:{}, Error: {}".format(scenario, step, e))
 
     def open_warning_window(self, payload: "EventPayload", warning_text: str, title: str | None = None) -> None:
+        if self._slack_client._shared is True and selected_loading_view() is None:
+            # Direct deferred actions have no genuine modal opener. Their signed
+            # original delivery coordinates can show the same native denial
+            # privately, without spending an expired trigger or selecting defaults.
+            delivery = selected_shared_delivery()
+            if (delivery is None or not _slack(delivery[1], "[UW]")
+                    or not _slack(delivery[2], "[CGD]")):
+                from rest_framework.response import Response
+                self._shared_warning_response = Response({"response_type": "ephemeral", "text":
+                    "This action cannot be performed. Check your current permissions."}, status=403)
+                return
+            try:
+                self._slack_client.chat_postEphemeral(channel=delivery[2], user=delivery[1],
+                    text=warning_text[:2500])
+            except SlackAPIError as error:
+                if error.response.get("error") not in {"user_not_in_channel", "no_permission", "permission_denied", "channel_not_found", "is_archived"}:
+                    raise
+                # Ephemeral delivery is not guaranteed. Keep the original
+                # bounded refusal; never open a DM or select another channel.
+                from rest_framework.response import Response
+                self._shared_warning_response = Response({"response_type": "ephemeral", "text":
+                    "This action cannot be performed. Check your current permissions."}, status=403)
+            return
         if title is None:
             title = ":warning: Warning"
         view = {
