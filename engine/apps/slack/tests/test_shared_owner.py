@@ -78,8 +78,9 @@ def physical(monkeypatch, *, response=None, error=None, mutate=None, response_fo
 
 @pytest.mark.parametrize("change", [
     {"version": True}, {"stackId": "local"}, {"nativeOrgId": "01"}, {"nativeOrgId": str(2**63)},
-    {"bindingRevision": True}, {"connectionGeneration": 0}, {"installationIncarnation": -1},
-    {"credentialRevision": 2**63}, {"teamId": "T_bad"}, {"appId": ""}, {"tokenSHA256": "A" * 64},
+    {"installationIncarnation": True}, {"installationIncarnation": 0}, {"installationIncarnation": -1},
+    {"installationIncarnation": 2**63}, {"connectionGeneration": 1}, {"teamId": "T_bad"}, {"appId": ""},
+    {"tokenSHA256": "A" * 64},
 ])
 def test_source_is_exact_bounded_provenance_not_loose_json(change):
     with pytest.raises(SharedOwnerError):
@@ -93,8 +94,8 @@ def test_duplicate_unicode_and_non_json_values_refuse(raw):
         strict_json(raw)
 
 
-@pytest.mark.parametrize("change", [{"tokenSHA256": "b" * 64}, {"appId": "A2"},
-    {"connectionId": "foreign"}, {"bindingDigest": "b" * 64}, {"teamId": "T2"}])
+@pytest.mark.parametrize("change", [{"appId": "A2"}, {"installationIncarnation": 0},
+    {"connectionId": "foreign"}, {"installationId": "foreign"}, {"stackId": "foreign"}, {"teamId": "T2"}])
 def test_equal_epoch_or_foreign_source_cannot_replace_original(change):
     with pytest.raises(SharedOwnerError):
         SharedSourceOwner.parse(source_owner(**change)).require_successor(SharedSourceOwner.parse(source_owner()))
@@ -208,7 +209,7 @@ def test_late_old_token_error_never_marks_replacement_token_revoked(admitted, mo
     client = SlackClient(org.slack_team_identity, source_organization=org)
     def rotate():
         SlackTeamIdentity.objects.filter(pk=org.slack_team_identity_id).update(bot_access_token="xoxb-new")
-        SharedSlackInstallation.objects.filter(organization=org).update(source_owner=source_owner("xoxb-new", credentialRevision=2))
+        SharedSlackInstallation.objects.filter(organization=org).update(source_owner=source_owner("xoxb-new"))
     native = physical(monkeypatch, response=SlackReply({"ok": False, "error": "token_revoked", "private": "do-not-log"}), mutate=rotate)
     with pytest.raises(SlackAPITokenError) as error:
         client.chat_postMessage(channel="C1", text="private")
@@ -229,13 +230,17 @@ def test_original_unproved_shared_projection_never_uses_legacy_transport(admitte
 
 def test_sync_disconnect_reconnect_epochs_preserve_tombstone_and_refuse_delayed_sync(admitted):
     org, user, body, wire = admitted
-    disconnected = source_owner(connectionGeneration=2, credentialRevision=2)
+    disconnected = source_owner()
     assert send({"operation": "disconnect", "orgId": "1", "teamId": "T1", "sourceOwner": disconnected}).status_code == 200
     assert SharedSlackInstallation.objects.get(organization=org).source_disconnected
-    assert send(body).status_code == 409
-    assert send({**body, "sourceOwner": disconnected}).status_code == 409
-    reconnected = source_owner(connectionGeneration=3, credentialRevision=3, installationIncarnation=2)
+    # No counter orders a delayed sync: the connector's fresh proof refuses it (the owner is not active).
+    wire.status = 409
+    assert send(body).status_code == 503
+    assert SharedSlackInstallation.objects.get(organization=org).source_disconnected
+    wire.status = 200
+    reconnected = source_owner(installationIncarnation=2)
     assert send({**body, "sourceOwner": reconnected}).status_code == 200
+    assert send({**body, "sourceOwner": disconnected}).status_code == 409  # never back to an older incarnation
     wire.status = 409  # authoritative connector denies old post-retirement tuple
     assert send({"operation": "disconnect", "orgId": "1", "teamId": "T1", "sourceOwner": disconnected}).status_code == 503
     row = SharedSlackInstallation.objects.get(organization=org)
@@ -252,7 +257,7 @@ def test_config_drift_during_native_sql_sync_rolls_back_original_projection(admi
         return result
     monkeypatch.setattr(SlackTeamIdentity, "save", changed)
     assert send({**body, "installation": {**body["installation"], "botToken": "xoxb-new"},
-        "sourceOwner": source_owner("xoxb-new", credentialRevision=2)}).status_code == 503
+        "sourceOwner": source_owner("xoxb-new")}).status_code == 503
     assert SlackTeamIdentity.objects.get(pk=org.slack_team_identity_id).bot_access_token == "xoxb-test"
     assert SharedSlackInstallation.objects.get(organization=org).source_owner == body["sourceOwner"]
 
@@ -300,7 +305,12 @@ def test_actual_modal_open_binds_original_view_and_ids_only_origin(admitted, mon
     origin = {"kind": "view", "viewId": "V1", "slackUserId": "U1"}
     result = send({"operation": "origin", "teamId": "T1", "appId": "A1", "origin": origin})
     assert result.data == {"version": 1, "sourceOwner": owner.projection(), "origin": origin}
-    assert send({"operation": "origin", "teamId": "T1", "appId": "A1", "origin": {**origin, "slackUserId": "U2"}}).status_code == 404
+    not_mine = send({"operation": "origin", "teamId": "T1", "appId": "A1", "origin": {**origin, "slackUserId": "U2"}})
+    # The versioned "not mine" lets the connector complete its job instead of retrying it.
+    assert not_mine.status_code == 404 and not_mine.data == {"version": 1, "notOwned": True}
+    unknown = send({"operation": "origin", "teamId": "T1", "appId": "A1",
+        "origin": {"kind": "message", "channelId": "C9", "messageTS": "1.2", "slackUserId": "U1"}})
+    assert unknown.status_code == 404 and unknown.data == {"version": 1, "notOwned": True}
     payload["view"]["private_metadata"] = "forged"
     assert modal_owner(payload, "T1", "A1") is None
 
@@ -738,7 +748,7 @@ def test_actorless_catalog_event_never_bypasses_original_source_proof(admitted, 
     elif change == "team":
         data["payload"]["team_id"] = "T2"
     elif change == "epoch":
-        data["sourceOwner"]["connectionGeneration"] = 2
+        data["sourceOwner"]["installationIncarnation"] = 2
     elif change == "mapping":
         settings.SHARED_SLACK_ORG_MAP = {}
     else:
@@ -1183,7 +1193,7 @@ def test_completion_mint_requires_original_committed_outcome_and_retained_modal_
     elif bad == "prior_outcome":
         started = timezone.now() + timedelta(seconds=1)
     elif bad == "wrong_source":
-        owner = SharedSourceOwner.parse({**body["sourceOwner"], "connectionGeneration": 2})
+        owner = SharedSourceOwner.parse({**body["sourceOwner"], "installationIncarnation": 2})
     with original_completion_dispatch(org, user, body, payload):
         if bad == "wrong_origin":
             payload["view"]["private_metadata"] = json.dumps({**metadata, "channel_id": "COTHER"})

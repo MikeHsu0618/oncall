@@ -84,6 +84,14 @@ def authenticated(request):
         return False
 
 
+def not_owned():
+    """OnCall's versioned "not mine": the connector completes its job instead of retrying.
+
+    A bare 404 (a misrouted bridge URL) stays an outage on the connector side.
+    """
+    return Response({"version": 1, "notOwned": True}, status=404)
+
+
 def payload_team(payload):
     team = payload.get("team")
     return team.get("id") if isinstance(team, dict) else payload.get("team_id")
@@ -221,13 +229,10 @@ class SharedSlackAppView(APIView):
             if source is not None and source.source_owner is not None:
                 try:
                     previous = SharedSourceOwner.parse(source.source_owner)
-                    if (operation == "sync" and source.source_disconnected
-                            and (owner.binding_revision, owner.binding_digest) != (previous.binding_revision, previous.binding_digest)):
-                        owner.require_reenrollment(previous)
-                    else:
-                        owner.require_successor(previous)
-                    if (operation != "sync" and (owner != previous or source.source_disconnected)
-                            or source.source_disconnected and owner.connection_generation <= previous.connection_generation):
+                    owner.require_successor(previous)
+                    # A sync re-enrolls a disconnected source: verify_source above is the
+                    # connector's fresh proof that this owner is active again.
+                    if operation != "sync" and (owner != previous or source.source_disconnected):
                         return Response(status=409)
                 except SharedOwnerError:
                     return Response(status=409)
@@ -500,9 +505,9 @@ class SharedSlackAppView(APIView):
         try:
             owner = SharedSourceOwner.parse(raw_owner)
             if owner.team_id != team or owner.app_id != app:
-                return Response(status=404)
+                return not_owned()
         except SharedOwnerError:
-            return Response(status=404)
+            return not_owned()
         return Response({"version": 1, "sourceOwner": owner.projection(), "origin": origin})
 
     @staticmethod
@@ -635,8 +640,8 @@ class SharedSlackAppView(APIView):
                 owner.require_successor(previous)
             except SharedOwnerError:
                 return Response(status=409)
-            if (owner.connection_generation <= previous.connection_generation and not source.source_disconnected):
-                return Response(status=409)
+            # No counter orders a disconnect: the connector's fresh "disconnect" proof
+            # (verify_source before this call) says the owner is disconnected right now.
             team = source.team
             if team.slack_id != team_id:
                 return Response(status=409)

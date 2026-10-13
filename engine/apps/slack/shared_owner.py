@@ -19,9 +19,11 @@ from django.db import transaction
 
 MAX_COUNTER = 2**63 - 1
 _SOURCE = ContextVar("oncall_shared_source", default=None)
-_FIELDS = frozenset(("version", "stackId", "nativeOrgId", "bindingRevision", "bindingDigest",
-                     "connectionId", "connectionGeneration", "installationId", "installationIncarnation",
-                     "credentialRevision", "teamId", "appId", "tokenSHA256"))
+# The connector's SourceOwner wire contract. Its only counter is installationIncarnation (a reinstall,
+# possibly under another Slack App); token rotation shows in tokenSHA256 and a disconnect in the
+# connector's fresh "disconnect" proof plus source_disconnected here.
+_ORDER = ("version", "stackId", "nativeOrgId", "connectionId", "installationId", "installationIncarnation", "teamId", "appId", "tokenSHA256")
+_FIELDS = frozenset(_ORDER)
 
 
 class SharedOwnerError(RuntimeError):
@@ -128,13 +130,9 @@ class SharedSourceOwner:
     version: int
     stack_id: str
     native_org_id: str
-    binding_revision: int
-    binding_digest: str
     connection_id: str
-    connection_generation: int
     installation_id: str
     installation_incarnation: int
-    credential_revision: int
     team_id: str
     app_id: str
     token_sha256: str
@@ -145,43 +143,26 @@ class SharedSourceOwner:
             raise SharedOwnerError()
         if (not _identifier(value["stackId"]) or value["stackId"] == "local" or not _positive(value["nativeOrgId"])
                 or not all(_identifier(value[k]) for k in ("connectionId", "installationId"))
-                or not all(_counter(value[k]) for k in ("bindingRevision", "connectionGeneration", "installationIncarnation", "credentialRevision"))
-                or not _digest(value["bindingDigest"]) or not _digest(value["tokenSHA256"])
+                or not _counter(value["installationIncarnation"]) or not _digest(value["tokenSHA256"])
                 or not _slack(value["teamId"], "T") or not _slack(value["appId"], "A")):
             raise SharedOwnerError()
-        return cls(*(value[k] for k in ("version", "stackId", "nativeOrgId", "bindingRevision", "bindingDigest", "connectionId",
-                    "connectionGeneration", "installationId", "installationIncarnation", "credentialRevision", "teamId", "appId", "tokenSHA256")))
+        return cls(*(value[k] for k in _ORDER))
 
     def projection(self):
-        return dict(zip(("version", "stackId", "nativeOrgId", "bindingRevision", "bindingDigest", "connectionId",
-                        "connectionGeneration", "installationId", "installationIncarnation", "credentialRevision", "teamId", "appId", "tokenSHA256"),
-                        (self.version, self.stack_id, self.native_org_id, self.binding_revision, self.binding_digest,
-                         self.connection_id, self.connection_generation, self.installation_id, self.installation_incarnation,
-                         self.credential_revision, self.team_id, self.app_id, self.token_sha256)))
+        return dict(zip(_ORDER, (self.version, self.stack_id, self.native_org_id, self.connection_id,
+                                 self.installation_id, self.installation_incarnation, self.team_id, self.app_id,
+                                 self.token_sha256)))
 
     def require_successor(self, previous):
         # A new approved route needs explicit original-owner enrollment. Never
         # turn a default change into a native organization's new source owner.
-        if ((self.stack_id, self.native_org_id, self.binding_revision, self.binding_digest, self.connection_id, self.installation_id)
-                != (previous.stack_id, previous.native_org_id, previous.binding_revision, previous.binding_digest,
-                    previous.connection_id, previous.installation_id)
-                or self.connection_generation < previous.connection_generation
+        # A token rotation needs no counter: the connector's fresh source proof vouches
+        # for the current tokenSHA256. A different Slack App must be a new incarnation.
+        if ((self.stack_id, self.native_org_id, self.connection_id, self.installation_id, self.team_id)
+                != (previous.stack_id, previous.native_org_id, previous.connection_id, previous.installation_id,
+                    previous.team_id)
                 or self.installation_incarnation < previous.installation_incarnation
-                or self.credential_revision < previous.credential_revision
-                or self.team_id != previous.team_id
-                or (self.app_id != previous.app_id and (self.installation_incarnation <= previous.installation_incarnation
-                    or self.credential_revision <= previous.credential_revision))
-                or (self.token_sha256 != previous.token_sha256 and self.credential_revision <= previous.credential_revision)):
-            raise SharedOwnerError()
-
-
-    def require_reenrollment(self, previous):
-        """Fresh join of the SAME disconnected physical owner, never a retarget."""
-        same = ("stack_id", "native_org_id", "connection_id", "installation_id", "installation_incarnation",
-                "credential_revision", "team_id", "app_id", "token_sha256")
-        if (any(getattr(self, key) != getattr(previous, key) for key in same)
-                or self.binding_revision <= previous.binding_revision
-                or self.connection_generation <= previous.connection_generation):
+                or (self.app_id != previous.app_id and self.installation_incarnation <= previous.installation_incarnation)):
             raise SharedOwnerError()
 
 

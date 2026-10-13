@@ -20,7 +20,7 @@ def test_original_chain_cold_upgrade_preserves_token_role_and_unproved_rows(
     old_role = user.role
     executor = MigrationExecutor(connection)
     assert executor.loader.get_migration(*NEW).dependencies == [OLD]
-    assert NEW in executor.loader.graph.leaf_nodes("slack")
+    assert ("slack", "0019_shared_slack_owner_counters") in executor.loader.graph.leaf_nodes("slack")
     executor.migrate([OLD])
     try:
         old_apps = executor.loader.project_state([OLD]).apps

@@ -29,7 +29,7 @@ def stacks(settings, monkeypatch, make_organization_and_user):
         "teamId": "T1", "teamName": "Test", "appId": "A1", "botToken": "xoxb-test", "botUserId": "UB1", "botId": "B1"},
         "link": link_receipt("7"), "sourceOwner": source_owner()}
     body_b = {**copy.deepcopy(body_a), "sourceOwner": source_owner(stackId="secondary",
-        bindingDigest="b" * 64, connectionId="connection-b", installationId="installation-b")}
+        connectionId="connection-b", installationId="installation-b")}
     return a, user_a, body_a, b, user_b, body_b, wire
 
 
@@ -117,7 +117,7 @@ def test_disconnect_one_stack_preserves_peer_org_user_and_token(stacks):
     a, user_a, body_a, b, user_b, body_b, _ = stacks
     assert send(body_a).status_code == send(body_b).status_code == 200
     disconnect = {"operation": "disconnect", "orgId": "1", "teamId": "T1",
-        "sourceOwner": {**body_b["sourceOwner"], "connectionGeneration": 2}}
+        "sourceOwner": body_b["sourceOwner"]}
     assert send(disconnect).status_code == 200
     a.refresh_from_db(); b.refresh_from_db(); user_a.refresh_from_db(); user_b.refresh_from_db()
     assert b.slack_team_identity_id is None
@@ -167,7 +167,7 @@ def test_existing_owner_rotation_invalidates_peer_until_its_current_sync(stacks)
     assert send(body_a).status_code == send(body_b).status_code == 200
     rotated_a = copy.deepcopy(body_a)
     rotated_a["installation"]["botToken"] = "xoxb-rotated"
-    rotated_a["sourceOwner"] = source_owner("xoxb-rotated", credentialRevision=2)
+    rotated_a["sourceOwner"] = source_owner("xoxb-rotated")
     assert send(rotated_a).status_code == 200
     a.refresh_from_db(); b.refresh_from_db()
     assert local_source_snapshot(a.slack_team_identity_id, a.pk)[1] == SharedSourceOwner.parse(rotated_a["sourceOwner"])
@@ -175,15 +175,15 @@ def test_existing_owner_rotation_invalidates_peer_until_its_current_sync(stacks)
         local_source_snapshot(b.slack_team_identity_id, b.pk)
     rotated_b = copy.deepcopy(body_b)
     rotated_b["installation"]["botToken"] = "xoxb-rotated"
-    rotated_b["sourceOwner"].update(tokenSHA256=rotated_a["sourceOwner"]["tokenSHA256"], credentialRevision=2)
+    rotated_b["sourceOwner"].update(tokenSHA256=rotated_a["sourceOwner"]["tokenSHA256"])
     assert send(rotated_b).status_code == 200
     assert local_source_snapshot(b.slack_team_identity_id, b.pk)[1] == SharedSourceOwner.parse(rotated_b["sourceOwner"])
 
 
-def test_disconnected_original_owner_rejoins_higher_binding_without_new_physical_identity(stacks):
+def test_disconnected_original_owner_rejoins_without_new_physical_identity(stacks):
     a, user_a, body, _, _, _, _ = stacks
     assert send(body).status_code == 200
-    old = {**body["sourceOwner"], "connectionGeneration": 2}
+    old = body["sourceOwner"]
     disconnected = send({"operation": "disconnect", "orgId": "1", "teamId": "T1", "sourceOwner": old})
     assert disconnected.status_code == 200
     assert disconnected.data == {"version": 1, "sourceOwner": old, "sourceDisconnected": True, "organizationUnlinked": True}
@@ -192,8 +192,8 @@ def test_disconnected_original_owner_rejoins_higher_binding_without_new_physical
     team_pk = source.team_id
     assert source.source_disconnected
     assert SlackTeamIdentity.objects.get(pk=team_pk).bot_access_token is None
+    # The same owner re-enrolls: the connector's fresh sync proof says it is active again.
     new = copy.deepcopy(body)
-    new["sourceOwner"].update(bindingRevision=2, bindingDigest="c" * 64, connectionGeneration=3)
     assert send(new).status_code == 200
     source.refresh_from_db(); a.refresh_from_db(); user_a.refresh_from_db()
     assert source.source_owner == new["sourceOwner"] and not source.source_disconnected
@@ -202,21 +202,16 @@ def test_disconnected_original_owner_rejoins_higher_binding_without_new_physical
     assert user_a.role == LegacyAccessControlRole.ADMIN
 
 
-@pytest.mark.parametrize("failure", ["active", "stack", "org", "connection", "installation", "app",
-                                   "token", "incarnation", "credential", "binding_revision", "generation"])
-def test_new_binding_never_retargets_active_or_different_native_source(stacks, failure, settings):
+@pytest.mark.parametrize("failure", ["stack", "org", "connection", "installation", "app"])
+def test_rejoin_never_retargets_a_different_native_source(stacks, failure, settings):
     a, _, body, _, _, _, _ = stacks
     assert send(body).status_code == 200
-    old = {**body["sourceOwner"], "connectionGeneration": 2}
-    if failure != "active":
-        assert send({"operation": "disconnect", "orgId": "1", "teamId": "T1", "sourceOwner": old}).status_code == 200
+    old = body["sourceOwner"]
+    assert send({"operation": "disconnect", "orgId": "1", "teamId": "T1", "sourceOwner": old}).status_code == 200
     new = copy.deepcopy(body)
-    new["sourceOwner"].update(bindingRevision=2, bindingDigest="c" * 64, connectionGeneration=3)
     changes = {"stack": ("stackId", "secondary"), "org": ("nativeOrgId", "2"),
         "connection": ("connectionId", "foreign"), "installation": ("installationId", "foreign"),
-        "app": ("appId", "A2"), "token": ("tokenSHA256", "d" * 64),
-        "incarnation": ("installationIncarnation", 2), "credential": ("credentialRevision", 2),
-        "binding_revision": ("bindingRevision", 1), "generation": ("connectionGeneration", 2)}
+        "app": ("appId", "A2")}
     if failure in changes:
         key, value = changes[failure]
         new["sourceOwner"][key] = value
@@ -228,11 +223,7 @@ def test_new_binding_never_retargets_active_or_different_native_source(stacks, f
         new["orgId"] = "2"
         settings.SHARED_SLACK_ORG_MAP = {"grafana-apps": {"2": a.pk}}
     elif failure == "app":
-        new["installation"]["appId"] = "A2"
-    elif failure == "token":
-        new["installation"]["botToken"] = "xoxb-foreign"
-        import hashlib
-        new["sourceOwner"]["tokenSHA256"] = hashlib.sha256(b"xoxb-foreign").hexdigest()
+        new["installation"]["appId"] = "A2"  # another App without a new installation incarnation
     before = list(SharedSlackInstallation.objects.values("organization_id", "team_id", "source_owner", "source_disconnected"))
     token = SlackTeamIdentity.objects.get().bot_access_token
     assert send(new).status_code != 200

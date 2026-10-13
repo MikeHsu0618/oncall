@@ -25,9 +25,8 @@ def send(body, *, secret="bridge-secret", timestamp=None):
 
 
 def source_owner(token="xoxb-test", **changes):
-    return {"version": 1, "stackId": "grafana-apps", "nativeOrgId": "1", "bindingRevision": 1,
-        "bindingDigest": "a" * 64, "connectionId": "connection-1", "connectionGeneration": 1,
-        "installationId": "installation-1", "installationIncarnation": 1, "credentialRevision": 1,
+    return {"version": 1, "stackId": "grafana-apps", "nativeOrgId": "1", "connectionId": "connection-1",
+        "installationId": "installation-1", "installationIncarnation": 1,
         "teamId": "T1", "appId": "A1", "tokenSHA256": hashlib.sha256(token.encode()).hexdigest(), **changes}
 
 
@@ -154,7 +153,8 @@ def test_install_sync_preserves_native_user_role_and_rotates_bot_token(connected
     assert user.slack_user_identity.slack_id == "U1"
     assert organization.slack_team_identity.bot_access_token == "xoxb-test"
     rotated = {**body, "installation": {**body["installation"], "botToken": "xoxb-rotated"},
-        "sourceOwner": source_owner("xoxb-rotated", credentialRevision=2)}
+        "sourceOwner": source_owner("xoxb-rotated")}
+    # Same App, rotated token: no counter is needed, the connector's fresh proof vouches for the digest.
     assert send(rotated).status_code == 200
     assert SlackTeamIdentity.objects.count() == 1
     assert SlackTeamIdentity.objects.get().bot_access_token == "xoxb-rotated"
@@ -231,7 +231,7 @@ def test_disconnect_clears_native_installation_and_link(connected):
     organization, user, body = connected
     assert send(body).status_code == 200
     assert send({"operation": "disconnect", "orgId": "1", "teamId": "T1",
-        "sourceOwner": source_owner(connectionGeneration=2, credentialRevision=2)}).status_code == 200
+        "sourceOwner": source_owner()}).status_code == 200
     organization.refresh_from_db()
     user.refresh_from_db()
     assert organization.slack_team_identity_id is None
@@ -396,7 +396,7 @@ def test_native_alert_card_adds_assistant_only_when_available(alert_context, ava
     assert all(b["action_id"] != INVESTIGATE_ALERT_ACTION_ID for b in native)
     assert any(b["action_id"].startswith("AcknowledgeGroupStep") for b in native)
     assert send({"operation": "disconnect", "orgId": "1", "teamId": "T1",
-        "sourceOwner": source_owner(connectionGeneration=2, credentialRevision=2)}).status_code == 200
+        "sourceOwner": source_owner()}).status_code == 200
     assert SharedSlackInstallation.objects.get(organization=organization).source_disconnected is True
 
 
