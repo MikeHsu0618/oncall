@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 import os
 import typing
 from random import randrange
@@ -18,6 +19,9 @@ OPEN_SOURCE_LICENSE_NAME = "OpenSource"
 CLOUD_LICENSE_NAME = "Cloud"
 LICENSE = os.environ.get("ONCALL_LICENSE", default=OPEN_SOURCE_LICENSE_NAME)
 IS_OPEN_SOURCE = LICENSE == OPEN_SOURCE_LICENSE_NAME
+# Optional license string reported by StatusV2 to mobile-app-token callers only; the
+# engine license (and IS_OPEN_SOURCE) is unchanged. Unset/blank keeps settings.LICENSE.
+MOBILE_APP_STATUS_LICENSE = os.environ.get("MOBILE_APP_STATUS_LICENSE", "").strip() or None
 CURRENTLY_UNDERGOING_MAINTENANCE_MESSAGE = os.environ.get("CURRENTLY_UNDERGOING_MAINTENANCE_MESSAGE", None)
 IS_IN_MAINTENANCE_MODE = CURRENTLY_UNDERGOING_MAINTENANCE_MESSAGE is not None
 
@@ -56,6 +60,16 @@ DOCS_URL = "https://grafana.com/docs/oncall/latest/"
 # Settings of running OnCall instance.
 BASE_URL = os.environ.get("BASE_URL")  # Root URL of OnCall backend
 GRAFANA_PUBLIC_URL = os.environ.get("GRAFANA_PUBLIC_URL")  # Browser-facing Grafana URL for UI links
+
+# Optional single-org WebSession binding. Only a protected key FILE PATH belongs
+# in this JSON; field/key validation is deferred to the fail-closed mint/JWKS path.
+WEB_SESSION_ENABLED = getenv_boolean("WEB_SESSION_ENABLED", default=False)
+try:
+    WEB_SESSION_BINDING = json.loads(os.environ.get("WEB_SESSION_BINDING", "{}"))
+except json.JSONDecodeError:
+    # A broken optional feature must not prevent production health/status startup.
+    logging.getLogger(__name__).warning("Invalid WebSession field: WEB_SESSION_BINDING")
+    WEB_SESSION_BINDING = None
 
 # Feature toggles
 FEATURE_LIVE_SETTINGS_ENABLED = getenv_boolean("FEATURE_LIVE_SETTINGS_ENABLED", default=True)

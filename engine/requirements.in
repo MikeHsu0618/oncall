@@ -66,3 +66,6 @@ google-auth-oauthlib==1.2.0
 # requests==2.32.3 is installing idna==3.6 but supports idna>=2.5,<4
 # https://github.com/psf/requests/blob/v2.32.3/setup.py#L63
 idna==3.7
+
+# Native WebSession ES256 signing (already pinned transitively).
+PyJWT==2.10.1

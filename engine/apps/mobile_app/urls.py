@@ -1,5 +1,6 @@
 from django.urls import re_path
 
+from apps.mobile_app.web_session.views import WebSessionJWKSView, WebSessionView
 from apps.mobile_app.fcm_relay import FCMRelayView
 from apps.mobile_app.views import (
     FCMDeviceAuthorizedViewSet,
@@ -15,6 +16,8 @@ router = OptionalSlashRouter()
 router.register("fcm", FCMDeviceAuthorizedViewSet, basename="fcm")
 
 urlpatterns = [
+    optional_slash_path("web_session", WebSessionView.as_view(), name="web_session"),
+    optional_slash_path("web_session/jwks", WebSessionJWKSView.as_view(), name="web_session_jwks"),
     *router.urls,
     optional_slash_path("auth_token", MobileAppAuthTokenAPIView.as_view(), name="auth_token"),
     optional_slash_path(

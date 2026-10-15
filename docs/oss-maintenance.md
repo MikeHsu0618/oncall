@@ -128,6 +128,59 @@ npm run runtime:up
 It builds this checkout, reuses the persistent OnCall/Redis volumes, and loads
 the separately packaged IRM plugin ZIP into an unmodified Grafana image.
 
+## Optional mobile WebSession configuration
+
+[code] Production `settings.helm` inherits these environment mappings from
+`settings.base`. The feature is disabled by default; set `WEB_SESSION_ENABLED=True`
+(or `1`) explicitly to enable it. `WEB_SESSION_BINDING` is one JSON object, not an
+inline signing key. Example values below are illustrative, not a live deployment:
+
+```sh
+WEB_SESSION_ENABLED=True
+WEB_SESSION_BINDING='{"oncall_org_id":42,"grafana_org_id":1,"internal_origin":"http://grafana:3000","public_origin":"https://grafana.example.test","namespace":"default","issuer":"https://oncall.example.test","key_id":"oncall-web-session","ttl_seconds":60,"private_key_file":"/run/secrets/oncall-web-session.pem"}'
+```
+
+[code] Supply every binding field shown above. IDs must be positive JSON integers,
+not strings or booleans. `internal_origin` is the operator-pinned probe origin;
+`public_origin` must be an HTTPS DNS origin with no credentials, path, query or
+fragment. Namespace, issuer, key ID, TTL and key-file validation run before minting
+or publishing JWKS. TTL defaults to 60 seconds when omitted and must be an integer
+from 15 through 120 seconds. Malformed JSON is logged by field name and disables
+binding use without preventing production startup; invalid bindings fail closed.
+
+[code] Deliver the ES256 P-256 PEM private key out of band as a **read-only mounted,
+protected regular file** at the absolute `private_key_file` path. The OnCall process
+must be able to read it; use owner-only permissions such as `0400` (no group/other
+access), a protected parent directory, and no symlink at the file path. Do not put
+private key bytes in environment JSON, Helm values, source, logs or this repository.
+Provision and rotate the file through your deployment's secret-file mechanism;
+this example contains no real key. Protect file replacement/rotation from writers.
+
+[code] StatusV2 substitutes only the enabled matching organization's validated
+public URL; signer failures do not mask existing connection health. Unusable
+optional URL/mapping values leave the original status intact and log safe field
+and organization context. Mint/JWKS still reject unavailable signing material.
+[UNVERIFIED] This private candidate's mocked/SQLite tests are not real native
+Grafana, mobile-app, distributed-cache or deployment acceptance.
+
+[code] `MOBILE_APP_STATUS_LICENSE` (optional, default unset) changes only the
+`license` string StatusV2 reports to callers authenticated with a
+`MobileAppAuthToken`. Unset or blank reports the engine `ONCALL_LICENSE` value;
+plugin-token callers always receive the engine license, and `LICENSE` /
+`IS_OPEN_SOURCE` are unchanged. It is intended for the official Grafana mobile
+app, which force-logs-out OpenSource-licensed engines, e.g.
+`MOBILE_APP_STATUS_LICENSE=SelfHosted`.
+
+[code] The WebSession access token delegates exactly these actions (the
+validation pair delegates only `orgs:read`); service `permissions` stay empty and
+delegation caps, never widens, the user's own Grafana permissions:
+`orgs:read`, `dashboards:read`, `folders:read`, `datasources:read`,
+`datasources:query`, `plugins.app:access`, `annotations:read`,
+`dashboard.grafana.app/dashboards:get`, `folder.grafana.app/folders:get`,
+`preferences.grafana.app/preferences:get`, `alert.rules:read`. All verbs are
+read/get/query/access, but `plugins.app:access` also reaches authorized apps' own
+mutable APIs, so the list is not a read-only confinement boundary.
+
 ## Maintenance policy
 
 1. Add a failing engine-level contract test before changing a response.
