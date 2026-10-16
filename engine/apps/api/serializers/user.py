@@ -3,8 +3,10 @@ import time
 import typing
 
 from django.conf import settings
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.api.permissions import get_effective_permissions
 from apps.api.serializers.telegram import TelegramToUserConnectorSerializer
 from apps.base.messaging import get_messaging_backends
 from apps.base.models import UserNotificationPolicy
@@ -225,7 +227,11 @@ class UserSerializer(ListUserSerializer):
 
 
 class CurrentUserSerializer(UserSerializer):
-    rbac_permissions = UserPermissionSerializer(read_only=True, many=True, source="permissions")
+    rbac_permissions = serializers.SerializerMethodField()
+
+    @extend_schema_field(UserPermissionSerializer(many=True))
+    def get_rbac_permissions(self, obj: User) -> list[dict[str, str]]:
+        return UserPermissionSerializer(get_effective_permissions(obj), many=True).data
 
     class Meta(UserSerializer.Meta):
         fields = UserSerializer.Meta.fields + [

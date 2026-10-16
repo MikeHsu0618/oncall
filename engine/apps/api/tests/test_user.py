@@ -7,16 +7,21 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
+from drf_spectacular.openapi import AutoSchema
+from drf_spectacular.plumbing import ComponentRegistry
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.test import APIClient
+from rest_framework.views import APIView
 
 from apps.api import permissions
-from apps.api.serializers.user import UserHiddenFieldsSerializer
+from apps.api.serializers.user import CurrentUserSerializer, UserHiddenFieldsSerializer
 from apps.api.views.user import UPCOMING_SHIFTS_DEFAULT_DAYS
 from apps.base.models import UserNotificationPolicy
 from apps.phone_notifications.exceptions import FailedToFinishVerification
 from apps.schedules.models import CustomOnCallShift, OnCallScheduleWeb
+from apps.user_management.models import Organization, User
+from apps.user_management.models.service_account import ServiceAccount, ServiceAccountUser
 from apps.user_management.models.user import default_working_hours
 
 
@@ -34,6 +39,17 @@ def test_current_user(
     make_on_call_shift,
 ):
     organization, user, token = make_organization_and_user_with_plugin_token()
+    raw_permissions = user.permissions
+    expected_actions = (
+        [row["action"] for row in raw_permissions]
+        if organization.is_rbac_permissions_enabled
+        else [
+            action
+            for permission in permissions.ALL_PERMISSION_CLASSES
+            if permissions.user_is_authorized(user, [permission])
+            for action in permissions.get_required_permission_values(organization, [permission])
+        ]
+    )
 
     client = APIClient()
     url = reverse("api-internal:api-user")
@@ -47,7 +63,7 @@ def test_current_user(
         "username": user.username,
         "name": user.name,
         "role": user.role,
-        "rbac_permissions": user.permissions,
+        "rbac_permissions": [{"action": action} for action in dict.fromkeys(expected_actions)],
         "timezone": None,
         "working_hours": default_working_hours(),
         "is_currently_oncall": False,
@@ -100,6 +116,117 @@ def test_current_user(
     response = client.put(url, data=data_to_update, format="json", **make_user_auth_headers(user, token))
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == expected_response | data_to_update
+    user.refresh_from_db()
+    assert user.permissions == raw_permissions
+
+
+@pytest.mark.parametrize("role", list(permissions.LegacyAccessControlRole))
+@pytest.mark.parametrize("is_rbac_permissions_enabled", [False, True])
+@pytest.mark.parametrize("is_grafana_irm_enabled", [True, False])
+@pytest.mark.django_db
+def test_current_user_effective_permissions(
+    make_organization_and_user_with_plugin_token,
+    make_user_auth_headers,
+    role,
+    is_rbac_permissions_enabled,
+    is_grafana_irm_enabled,
+):
+    organization, user, token = make_organization_and_user_with_plugin_token(role=role)
+    organization.is_rbac_permissions_enabled = is_rbac_permissions_enabled
+    organization.is_grafana_irm_enabled = is_grafana_irm_enabled
+    organization.save(update_fields=["is_rbac_permissions_enabled", "is_grafana_irm_enabled"])
+    granted_actions = (
+        permissions.get_required_permission_values(organization, [permissions.RBACPermission.Permissions.ALERT_GROUPS_READ])
+        if is_rbac_permissions_enabled
+        else []
+    )
+    user.permissions = permissions.GrafanaAPIPermissions.construct_permissions(granted_actions)
+    user.save(update_fields=["permissions"])
+    expected_actions = (
+        granted_actions
+        if is_rbac_permissions_enabled
+        else [
+            action
+            for permission in permissions.ALL_PERMISSION_CLASSES
+            if permissions.user_is_authorized(user, [permission])
+            for action in permissions.get_required_permission_values(organization, [permission])
+        ]
+    )
+
+    response = APIClient().get(reverse("api-internal:api-user"), **make_user_auth_headers(user, token))
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["rbac_permissions"] == [{"action": action} for action in dict.fromkeys(expected_actions)]
+    user.refresh_from_db()
+    assert user.permissions == [{"action": action} for action in granted_actions]
+
+
+@pytest.mark.parametrize("is_grafana_irm_enabled", [True, False])
+@pytest.mark.django_db
+def test_current_user_rbac_admin_without_grants(
+    make_organization_and_user_with_plugin_token, make_user_auth_headers, is_grafana_irm_enabled
+):
+    organization, user, token = make_organization_and_user_with_plugin_token(role=permissions.LegacyAccessControlRole.ADMIN)
+    organization.is_rbac_permissions_enabled = True
+    organization.is_grafana_irm_enabled = is_grafana_irm_enabled
+    organization.save(update_fields=["is_rbac_permissions_enabled", "is_grafana_irm_enabled"])
+    user.permissions = []
+    user.save(update_fields=["permissions"])
+
+    response = APIClient().get(reverse("api-internal:api-user"), **make_user_auth_headers(user, token))
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["rbac_permissions"] == []
+    assert permissions.user_is_authorized(user, [permissions.RBACPermission.Permissions.SCHEDULES_READ]) is False
+
+
+@pytest.mark.parametrize("is_rbac_permissions_enabled,is_service_account", [(True, False), (False, True), (True, True)])
+@pytest.mark.parametrize("is_grafana_irm_enabled", [True, False])
+@pytest.mark.parametrize("actions", [[], ["grafana-oncall-app.schedules:read"], ["grafana-irm-app.schedules:read"]])
+@pytest.mark.django_db
+def test_current_user_serializer_preserves_authoritative_actions(
+    is_rbac_permissions_enabled, is_service_account, is_grafana_irm_enabled, actions
+):
+    raw = [{"action": action} for action in actions]
+    organization = Organization(
+        is_rbac_permissions_enabled=is_rbac_permissions_enabled, is_grafana_irm_enabled=is_grafana_irm_enabled
+    )
+    user = (
+        ServiceAccountUser(
+            service_account=ServiceAccount(organization=organization, grafana_id=1, login="service-account"),
+            organization=organization,
+            username="service-account",
+            public_primary_key="service-account:1",
+            role=permissions.LegacyAccessControlRole.ADMIN,
+            permissions=raw,
+        )
+        if is_service_account
+        else User(organization=organization, role=permissions.LegacyAccessControlRole.ADMIN, permissions=raw)
+    )
+    field = CurrentUserSerializer().fields["rbac_permissions"]
+
+    assert field.to_representation(field.get_attribute(user)) == raw
+    assert user.permissions == raw
+
+
+def test_current_user_rbac_permissions_schema_is_array_of_action_objects():
+    schema = AutoSchema()
+    schema.view = APIView()
+    schema.view.request = None
+    schema.registry = ComponentRegistry()
+    schema.method = "GET"
+    schema.path = "/user/"
+
+    field = schema._map_serializer(CurrentUserSerializer(), "response")["properties"]["rbac_permissions"]
+
+    assert field["type"] == "array"
+    assert field["readOnly"] is True
+    component_name = field["items"]["$ref"].rsplit("/", 1)[1]
+    item = schema.registry.build({})["schemas"][component_name]
+    assert item["type"] == "object"
+    assert set(item["properties"]) == {"action"}
+    assert item["properties"]["action"]["type"] == "string"
+    assert item["required"] == ["action"]
 
 
 @pytest.mark.django_db

@@ -182,6 +182,28 @@ def user_is_authorized(user: "User", required_permissions: LegacyAccessControlCo
     return user_has_minimum_required_basic_role(user, get_most_authorized_role(required_permissions))
 
 
+def get_effective_permissions(user: "User") -> typing.List[GrafanaAPIPermission]:
+    """Project action permissions for clients without changing the user's authoritative grants."""
+    if user.organization.is_rbac_permissions_enabled or user.is_service_account:
+        return [permission.copy() for permission in user.permissions]
+
+    # The legacy evaluator compares numeric roles; reject malformed roles before using it.
+    if (
+        not isinstance(user.role, int)
+        or isinstance(user.role, bool)
+        or user.role not in (LegacyAccessControlRole.ADMIN, LegacyAccessControlRole.EDITOR, LegacyAccessControlRole.VIEWER)
+    ):
+        return []
+
+    actions = [
+        action
+        for permission in ALL_PERMISSION_CLASSES
+        if user_is_authorized(user, [permission])
+        for action in get_required_permission_values(user.organization, [permission])
+    ]
+    return GrafanaAPIPermissions.construct_permissions(list(dict.fromkeys(actions)))
+
+
 class RBACPermission(permissions.BasePermission):
     class Permissions:
         # NOTE: this is a bit of a hack for now. See https://github.com/grafana/support-escalations/issues/12625

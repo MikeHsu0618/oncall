@@ -1,11 +1,13 @@
 import typing
+from copy import deepcopy
 
 import pytest
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSetMixin
 
 from apps.api import permissions
-from apps.user_management.models import User
+from apps.user_management.models import Organization, User
+from apps.user_management.models.service_account import ServiceAccount, ServiceAccountUser
 from common.constants.plugin_ids import PluginID
 
 
@@ -322,6 +324,114 @@ def test_get_view_action():
 
     assert permissions.get_view_action(request, viewset) == viewset_action, "it works with a ViewSet"
     assert permissions.get_view_action(request, apiview) == method.lower(), "it works with an APIView"
+
+
+@pytest.mark.parametrize("is_grafana_irm_enabled", [True, False])
+@pytest.mark.parametrize("role", list(permissions.LegacyAccessControlRole))
+@pytest.mark.django_db
+def test_effective_permissions_match_singleton_authorization(role, is_grafana_irm_enabled):
+    organization = Organization(is_rbac_permissions_enabled=False, is_grafana_irm_enabled=is_grafana_irm_enabled)
+    user = User(organization=organization, role=role, permissions=[])
+    before = deepcopy(user.permissions)
+    expected_actions = [
+        action
+        for permission in permissions.ALL_PERMISSION_CLASSES
+        if permissions.user_is_authorized(user, [permission])
+        for action in permissions.get_required_permission_values(organization, [permission])
+    ]
+
+    projected = permissions.get_effective_permissions(user)
+    actions = [row["action"] for row in projected]
+    assert projected == [{"action": action} for action in dict.fromkeys(expected_actions)]
+    assert user.permissions == before
+    prefix = PluginID.IRM if is_grafana_irm_enabled else PluginID.ONCALL
+    assert all(action.startswith((f"{prefix}.", f"{PluginID.LABELS}.")) for action in actions)
+    assert (f"{prefix}.alert-groups:read" in actions) is (role != permissions.LegacyAccessControlRole.NONE)
+    assert (f"{prefix}.schedules:read" in actions) is (role != permissions.LegacyAccessControlRole.NONE)
+    if role == permissions.LegacyAccessControlRole.VIEWER:
+        assert f"{prefix}.alert-groups:write" not in actions
+        assert f"{prefix}.schedules:write" not in actions
+    if role in (permissions.LegacyAccessControlRole.VIEWER, permissions.LegacyAccessControlRole.EDITOR):
+        assert f"{prefix}.admin:admin" not in actions
+    if role != permissions.LegacyAccessControlRole.NONE:
+        assert permissions.RBACPermission.Permissions.LABEL_READ.value in actions
+
+
+@pytest.mark.parametrize("is_grafana_irm_enabled", [True, False])
+@pytest.mark.parametrize("role", [-1, 99, None, "0", True, False, 0.0, [], {}])
+@pytest.mark.django_db
+def test_effective_permissions_reject_invalid_legacy_roles(role, is_grafana_irm_enabled):
+    user = User(
+        organization=Organization(is_rbac_permissions_enabled=False, is_grafana_irm_enabled=is_grafana_irm_enabled),
+        role=role,
+        permissions=[{"action": permissions.RBACPermission.Permissions.ADMIN.value}],
+    )
+    before = deepcopy(user.permissions)
+
+    assert permissions.get_effective_permissions(user) == []
+    assert user.permissions == before
+
+
+@pytest.mark.parametrize("is_grafana_irm_enabled", [True, False])
+@pytest.mark.parametrize("is_rbac_permissions_enabled,is_service_account", [(True, False), (True, True), (False, True)])
+@pytest.mark.parametrize("role", [permissions.LegacyAccessControlRole.ADMIN, permissions.LegacyAccessControlRole.NONE])
+@pytest.mark.parametrize("grant", ["empty", "correct_namespace", "wrong_namespace"])
+@pytest.mark.django_db
+def test_effective_permissions_preserve_authoritative_grants(
+    role, grant, is_rbac_permissions_enabled, is_service_account, is_grafana_irm_enabled
+):
+    organization = Organization(
+        is_rbac_permissions_enabled=is_rbac_permissions_enabled, is_grafana_irm_enabled=is_grafana_irm_enabled
+    )
+    permission = permissions.RBACPermission.Permissions.SCHEDULES_READ
+    correct_action = permissions.get_required_permission_values(organization, [permission])[0]
+    wrong_prefix = PluginID.ONCALL if is_grafana_irm_enabled else PluginID.IRM
+    actions = (
+        []
+        if grant == "empty"
+        else [correct_action if grant == "correct_namespace" else f"{wrong_prefix}.schedules:read"]
+    )
+    raw = permissions.GrafanaAPIPermissions.construct_permissions(actions + actions)
+    user = (
+        ServiceAccountUser(
+            service_account=ServiceAccount(organization=organization, grafana_id=1, login="service-account"),
+            organization=organization,
+            username="service-account",
+            public_primary_key="service-account:1",
+            role=role,
+            permissions=raw,
+        )
+        if is_service_account
+        else User(organization=organization, role=role, permissions=raw)
+    )
+    before = deepcopy(raw)
+
+    projected = permissions.get_effective_permissions(user)
+    assert projected == before
+    assert user.permissions == before
+    assert projected is not raw
+    assert permissions.user_is_authorized(user, [permission]) is (grant == "correct_namespace")
+    assert (correct_action in [row["action"] for row in projected]) is (grant == "correct_namespace")
+    if projected:
+        assert projected[0] is not raw[0]
+
+
+@pytest.mark.django_db
+def test_effective_permissions_deduplicate_in_registry_order(monkeypatch):
+    first = permissions.RBACPermission.Permissions.SCHEDULES_READ
+    second = permissions.RBACPermission.Permissions.ALERT_GROUPS_READ
+    monkeypatch.setattr(permissions, "ALL_PERMISSION_CLASSES", [first, second, first])
+    user = User(
+        organization=Organization(is_rbac_permissions_enabled=False, is_grafana_irm_enabled=True),
+        role=permissions.LegacyAccessControlRole.ADMIN,
+        permissions=[{"action": "unrelated:grant"}],
+    )
+
+    assert permissions.get_effective_permissions(user) == [
+        {"action": "grafana-irm-app.schedules:read"},
+        {"action": "grafana-irm-app.alert-groups:read"},
+    ]
+    assert user.permissions == [{"action": "unrelated:grant"}]
 
 
 class TestRBACPermission:
