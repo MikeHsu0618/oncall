@@ -877,6 +877,16 @@ FCM_DJANGO_SETTINGS = {
 }
 
 MOBILE_APP_GATEWAY_ENABLED = getenv_boolean("MOBILE_APP_GATEWAY_ENABLED", default=False)
+# Native Incident calls under gateway/incident/ use the local service when True.
+MOBILE_APP_LOCAL_INCIDENT_ENABLED = getenv_boolean("MOBILE_APP_LOCAL_INCIDENT_ENABLED", default=False)
+# Redis renewing-lease admission per (org, user). Raw env strings are kept as-is and parsed
+# strictly by local_incident/admission.py at each request; any malformed value or no Redis
+# cache -> 503 (no silent fallback to defaults).
+MOBILE_APP_LOCAL_INCIDENT_READ_PER_MINUTE = os.environ.get("MOBILE_APP_LOCAL_INCIDENT_READ_PER_MINUTE", "60")
+MOBILE_APP_LOCAL_INCIDENT_WRITE_PER_MINUTE = os.environ.get("MOBILE_APP_LOCAL_INCIDENT_WRITE_PER_MINUTE", "20")
+MOBILE_APP_LOCAL_INCIDENT_CONCURRENCY = os.environ.get("MOBILE_APP_LOCAL_INCIDENT_CONCURRENCY", "4")
+MOBILE_APP_LOCAL_INCIDENT_LEASE_TTL_MS = os.environ.get("MOBILE_APP_LOCAL_INCIDENT_LEASE_TTL_MS", "15000")
+MOBILE_APP_LOCAL_INCIDENT_LEASE_RENEW_MS = os.environ.get("MOBILE_APP_LOCAL_INCIDENT_LEASE_RENEW_MS", "5000")
 GRAFANA_CLOUD_AUTH_API_URL = os.environ.get("GRAFANA_CLOUD_AUTH_API_URL", None)
 GRAFANA_CLOUD_AUTH_API_SYSTEM_TOKEN = os.environ.get("GRAFANA_CLOUD_AUTH_API_SYSTEM_TOKEN", None)
 

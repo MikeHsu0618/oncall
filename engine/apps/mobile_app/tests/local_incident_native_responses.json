@@ -1,0 +1,4336 @@
+{
+  "provenance": "[code] Exact projection of accepted static native parser evidence. Synthetic payloads; never sent. Not server schema or semantic success/readiness proof.",
+  "source": {
+    "path": "/private/tmp/mobile-incident-wire.abLgfs/contract.json",
+    "sha256": "2e425c76142d36745d979271623f9807e71ba0d20a6e19feca0cef61ff099c5e"
+  },
+  "opaque_generic_policy": "[UNVERIFIED] ActivityItem.fieldValues and ImportantActivityMatcher.fieldValues have unresolved generic arguments; tests require only bounded JSON, not invented key/value bindings.",
+  "primitive_string_lists": "[code] ActivityItem.tags and ActivityQuery.activityKind filter null elements before checking remaining strings; validator preserves bounded source JSON without rewriting.",
+  "models": {
+    "ActionEvent": {
+      "source_pointer": "/models/ActionEvent",
+      "parser": "0x22f17c",
+      "fields": {
+        "description": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "event": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "ActivityFilter": {
+      "source_pointer": "/models/ActivityFilter",
+      "parser": "0x240374",
+      "fields": {
+        "filter": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incidentID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "limit": {
+          "type": "int",
+          "nullable_or_missing": false
+        },
+        "orderDirection": {
+          "type": "string",
+          "nullable_or_missing": false
+        }
+      }
+    },
+    "ActivityItem": {
+      "source_pointer": "/models/ActivityItem",
+      "parser": "0x2407ec",
+      "fields": {
+        "activityItemID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "activityKind": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "attachments": {
+          "type": "Attachment[]",
+          "nullable_or_missing": true
+        },
+        "body": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "bodyFormat": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "bodyJSON": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "createdTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "eventTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "fieldValues": {
+          "type": "object",
+          "nullable_or_missing": true
+        },
+        "immutable": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "incidentID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "reactionsOverview": {
+          "type": "ReactionsOverview",
+          "nullable_or_missing": true
+        },
+        "recentComments": {
+          "type": "CommentsPreview",
+          "nullable_or_missing": true
+        },
+        "relevance": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "subjectUser": {
+          "type": "UserPreview",
+          "nullable_or_missing": true
+        },
+        "tags": {
+          "type": "string[]",
+          "nullable_or_missing": true
+        },
+        "url": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "user": {
+          "type": "UserPreview",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "ActivityQuery": {
+      "source_pointer": "/models/ActivityQuery",
+      "parser": "0x2445a8",
+      "fields": {
+        "activityKind": {
+          "type": "string[]",
+          "nullable_or_missing": true
+        },
+        "incidentID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "limit": {
+          "type": "int",
+          "nullable_or_missing": false
+        },
+        "orderDirection": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "tag": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "withBodyFormat": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "AddIncidentContextResponse": {
+      "source_pointer": "/models/AddIncidentContextResponse",
+      "parser": "0x233eb8",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incidentContext": {
+          "type": "IncidentContext",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "AddReactionResponse": {
+      "source_pointer": "/models/AddReactionResponse",
+      "parser": "0x2461b8",
+      "fields": {
+        "didChange": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "reactionsOverview": {
+          "type": "ReactionsOverview",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "AssignLabelByUUIDResponse": {
+      "source_pointer": "/models/AssignLabelByUUIDResponse",
+      "parser": "0x236a70",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "labels": {
+          "type": "IncidentKeyValueLabel[]",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "AssignRoleResponse": {
+      "source_pointer": "/models/AssignRoleResponse",
+      "parser": "0x62278c",
+      "fields": {
+        "didChange": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incident": {
+          "type": "Incident",
+          "nullable_or_missing": true
+        },
+        "role": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "userID": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "Assignment": {
+      "source_pointer": "/models/Assignment",
+      "parser": "0x22c35c",
+      "fields": {
+        "role": {
+          "type": "Role",
+          "nullable_or_missing": true
+        },
+        "roleID": {
+          "type": "int",
+          "nullable_or_missing": true
+        },
+        "user": {
+          "type": "UserPreview",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "AssignmentPreview": {
+      "source_pointer": "/models/AssignmentPreview",
+      "parser": "0x21ebd0",
+      "fields": {
+        "roleID": {
+          "type": "int",
+          "nullable_or_missing": true
+        },
+        "user": {
+          "type": "UserPreview",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "Attachment": {
+      "source_pointer": "/models/Attachment",
+      "parser": "0x2417f4",
+      "fields": {
+        "attachedByUserID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "attachmentErr": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "attachmentID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "contentLength": {
+          "type": "int",
+          "nullable_or_missing": true
+        },
+        "contentType": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "deletedTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "displayType": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "downloadURL": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "ext": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "fileType": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "hasThumbnail": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "path": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "sHA512": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "sourceURL": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "thumbnailURL": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "title": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "uploadTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "useSourceURL": {
+          "type": "bool",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "AutocompleteUsersResponse": {
+      "source_pointer": "/models/AutocompleteUsersResponse",
+      "parser": "0x464fa0",
+      "fields": {
+        "cacheStatus": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "users": {
+          "type": "UserPreview[]",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "Comment": {
+      "source_pointer": "/models/Comment",
+      "parser": "0x24368c",
+      "fields": {
+        "authors": {
+          "type": "UserPreviewList",
+          "nullable_or_missing": true
+        },
+        "body": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "bodyHTML": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "commentID": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "createdTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "deleted": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "edited": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "incidentID": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "modifiedTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "originalAuthor": {
+          "type": "UserPreview",
+          "nullable_or_missing": true
+        },
+        "reactionsOverview": {
+          "type": "ReactionsOverview",
+          "nullable_or_missing": true
+        },
+        "targetID": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "targetKind": {
+          "type": "string",
+          "nullable_or_missing": false
+        }
+      }
+    },
+    "CommentsPreview": {
+      "source_pointer": "/models/CommentsPreview",
+      "parser": "0x242c04",
+      "fields": {
+        "comments": {
+          "type": "Comment[]",
+          "nullable_or_missing": true
+        },
+        "cursor": {
+          "type": "Cursor",
+          "nullable_or_missing": true
+        },
+        "query": {
+          "type": "CommentsQuery",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "CommentsQuery": {
+      "source_pointer": "/models/CommentsQuery",
+      "parser": "0x242f14",
+      "fields": {
+        "incidentID": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "limit": {
+          "type": "int",
+          "nullable_or_missing": false
+        },
+        "onlyDeleted": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "orderDirection": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "targetID": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "targetKind": {
+          "type": "string",
+          "nullable_or_missing": false
+        }
+      }
+    },
+    "CreateIncidentResponse": {
+      "source_pointer": "/models/CreateIncidentResponse",
+      "parser": "0x2349f4",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incident": {
+          "type": "Incident",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "CreateKeyUpdateResponse": {
+      "source_pointer": "/models/CreateKeyUpdateResponse",
+      "parser": "0x238b20",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "keyUpdate": {
+          "type": "KeyUpdate",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "Cursor": {
+      "source_pointer": "/models/Cursor",
+      "parser": "0x223de4",
+      "fields": {
+        "hasMore": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "nextValue": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "CustomMetadataField": {
+      "source_pointer": "/models/CustomMetadataField",
+      "parser": "0x1fe7b4",
+      "fields": {
+        "archived": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "color": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "defaultValue": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "description": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "domainName": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "exportAsMetric": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "externalID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "icon": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "immutable": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "name": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "promptCompletion": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "required": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "selectoptions": {
+          "type": "CustomMetadataFieldSelectOption[]",
+          "nullable_or_missing": true
+        },
+        "slug": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "source": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "type": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "uuid": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "version": {
+          "type": "int",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "CustomMetadataFieldSelectOption": {
+      "source_pointer": "/models/CustomMetadataFieldSelectOption",
+      "parser": "0x1ff4a4",
+      "fields": {
+        "archived": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "color": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "description": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "externalID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "icon": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "label": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "source": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "uuid": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "value": {
+          "type": "string",
+          "nullable_or_missing": false
+        }
+      }
+    },
+    "CustomMetadataFieldValue": {
+      "source_pointer": "/models/CustomMetadataFieldValue",
+      "parser": "0x21ef14",
+      "fields": {
+        "fieldUUID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "value": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "Error": {
+      "source_pointer": "/models/Error",
+      "parser": "0x1fe2fc",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": false
+        }
+      }
+    },
+    "Field": {
+      "source_pointer": "/models/Field",
+      "parser": "0x22a960",
+      "fields": {
+        "checked": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "description": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "hidden": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "key": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "secret": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "type": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "value": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "FilterActivityResponse": {
+      "source_pointer": "/models/FilterActivityResponse",
+      "parser": "0x23ffa4",
+      "fields": {
+        "activityItems": {
+          "type": "ActivityItem[]",
+          "nullable_or_missing": true
+        },
+        "cursor": {
+          "type": "Cursor",
+          "nullable_or_missing": true
+        },
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "filter": {
+          "type": "ActivityFilter",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "GetFieldsResponse": {
+      "source_pointer": "/models/GetFieldsResponse",
+      "parser": "0x1fe454",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "fields": {
+          "type": "CustomMetadataField[]",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "GetIncidentResponse": {
+      "source_pointer": "/models/GetIncidentResponse",
+      "parser": "0x22d824",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incident": {
+          "type": "Incident",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "GetLastKeyUpdateResponse": {
+      "source_pointer": "/models/GetLastKeyUpdateResponse",
+      "parser": "0x23f42c",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "keyUpdate": {
+          "type": "KeyUpdate",
+          "nullable_or_missing": true
+        },
+        "keyUpdateCount": {
+          "type": "int",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "GetOrgResponse": {
+      "source_pointer": "/models/GetOrgResponse",
+      "parser": "0x230654",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "org": {
+          "type": "Org",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "GetOrgSeveritiesResponse": {
+      "source_pointer": "/models/GetOrgSeveritiesResponse",
+      "parser": "0x23280c",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "severities": {
+          "type": "Severity[]",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "GetOrgStatusResponse": {
+      "source_pointer": "/models/GetOrgStatusResponse",
+      "parser": "0x231670",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "isEnabled": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "isHealthy": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "isSetup": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "orgID": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "GetSessionResponse": {
+      "source_pointer": "/models/GetSessionResponse",
+      "parser": "0x71d59c",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "user": {
+          "type": "User",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "GetUserResponse": {
+      "source_pointer": "/models/GetUserResponse",
+      "parser": "0x463838",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "user": {
+          "type": "User",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "HookMetadata": {
+      "source_pointer": "/models/HookMetadata",
+      "parser": "0x22ba48",
+      "fields": {
+        "explanation": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "fields": {
+          "type": "Field[]",
+          "nullable_or_missing": true
+        },
+        "title": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "url": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "HookRun": {
+      "source_pointer": "/models/HookRun",
+      "parser": "0x22b244",
+      "fields": {
+        "enabledHookID": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "eventKind": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "eventName": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "hookID": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "integrationID": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "lastRun": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "lastUpdate": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "metadata": {
+          "type": "HookMetadata",
+          "nullable_or_missing": true
+        },
+        "status": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "updateError": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "updateStatus": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "ImportantActivityMatcher": {
+      "source_pointer": "/models/ImportantActivityMatcher",
+      "parser": "0x22ee38",
+      "fields": {
+        "activityKind": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "fieldValues": {
+          "type": "object",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "Incident": {
+      "source_pointer": "/models/Incident",
+      "parser": "0x2273d0",
+      "fields": {
+        "closedTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "createdByUser": {
+          "type": "UserPreview",
+          "nullable_or_missing": true
+        },
+        "createdTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "description": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "descriptionModifiedTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "descriptionUser": {
+          "type": "UserPreview",
+          "nullable_or_missing": true
+        },
+        "durationSeconds": {
+          "type": "int",
+          "nullable_or_missing": true
+        },
+        "fieldGroupUUID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "fieldValues": {
+          "type": "CustomMetadataFieldValue[]",
+          "nullable_or_missing": true
+        },
+        "incidentChannels": {
+          "type": "IncidentChannel[]",
+          "nullable_or_missing": true
+        },
+        "incidentEnd": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incidentHookRuns": {
+          "type": "IncidentHookRuns",
+          "nullable_or_missing": true
+        },
+        "incidentID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incidentMembership": {
+          "type": "IncidentMembership",
+          "nullable_or_missing": true
+        },
+        "incidentStart": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incidentType": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "isDrill": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "labels": {
+          "type": "IncidentLabel[]",
+          "nullable_or_missing": true
+        },
+        "modifiedTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "overviewURL": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "prefix": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "refs": {
+          "type": "IncidentRef[]",
+          "nullable_or_missing": true
+        },
+        "severity": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "severityID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "slug": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "state": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "status": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "statusID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "statusModifiedByUser": {
+          "type": "UserPreview",
+          "nullable_or_missing": true
+        },
+        "statusModifiedTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "summary": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "taskList": {
+          "type": "TaskList",
+          "nullable_or_missing": true
+        },
+        "title": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "version": {
+          "type": "int",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "IncidentChannel": {
+      "source_pointer": "/models/IncidentChannel",
+      "parser": "0x21e484",
+      "fields": {
+        "channelID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "provider": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "teamID": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "IncidentContext": {
+      "source_pointer": "/models/IncidentContext",
+      "parser": "0x2299b4",
+      "fields": {
+        "alertGroupID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "contextID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "createdByUser": {
+          "type": "UserPreview",
+          "nullable_or_missing": true
+        },
+        "createdTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "description": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incidentID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "lastRun": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "metadata": {
+          "type": "Field[]",
+          "nullable_or_missing": true
+        },
+        "modifiedTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "payload": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "processError": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "processStatus": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "processorInfo": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "status": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "title": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "type": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "IncidentContextQuery": {
+      "source_pointer": "/models/IncidentContextQuery",
+      "parser": "0x2bc148",
+      "fields": {
+        "alertGroupID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incidentID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "limit": {
+          "type": "int",
+          "nullable_or_missing": true
+        },
+        "orderDirection": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "orderField": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "payload": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "status": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "type": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "IncidentHookRuns": {
+      "source_pointer": "/models/IncidentHookRuns",
+      "parser": "0x22ae04",
+      "fields": {
+        "hookRuns": {
+          "type": "HookRun[]",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "IncidentKeyValueLabel": {
+      "source_pointer": "/models/IncidentKeyValueLabel",
+      "parser": "0x236128",
+      "fields": {
+        "colorHex": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "description": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "key": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "keyUUID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "value": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "valueUUID": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "IncidentLabel": {
+      "source_pointer": "/models/IncidentLabel",
+      "parser": "0x21f8ec",
+      "fields": {
+        "colorHex": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "description": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "key": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "keyUUID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "label": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "labelUUID": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "IncidentMembership": {
+      "source_pointer": "/models/IncidentMembership",
+      "parser": "0x22be38",
+      "fields": {
+        "assignments": {
+          "type": "Assignment[]",
+          "nullable_or_missing": true
+        },
+        "totalAssignments": {
+          "type": "int",
+          "nullable_or_missing": true
+        },
+        "totalParticipants": {
+          "type": "int",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "IncidentMembershipPreview": {
+      "source_pointer": "/models/IncidentMembershipPreview",
+      "parser": "0x21e6e4",
+      "fields": {
+        "importantAssignments": {
+          "type": "AssignmentPreview[]",
+          "nullable_or_missing": true
+        },
+        "totalAssignments": {
+          "type": "int",
+          "nullable_or_missing": true
+        },
+        "totalParticipants": {
+          "type": "int",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "IncidentPreview": {
+      "source_pointer": "/models/IncidentPreview",
+      "parser": "0x21d234",
+      "fields": {
+        "closedTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "createdByUser": {
+          "type": "UserPreview",
+          "nullable_or_missing": true
+        },
+        "createdTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "description": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "fieldValues": {
+          "type": "CustomMetadataFieldValue[]",
+          "nullable_or_missing": true
+        },
+        "incidentChannels": {
+          "type": "IncidentChannel[]",
+          "nullable_or_missing": true
+        },
+        "incidentEnd": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incidentID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incidentMembershipPreview": {
+          "type": "IncidentMembershipPreview",
+          "nullable_or_missing": true
+        },
+        "incidentStart": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incidentType": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "isDrill": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "labels": {
+          "type": "IncidentLabel[]",
+          "nullable_or_missing": true
+        },
+        "modifiedTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "severityID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "severityLabel": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "slug": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "state": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "status": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "statusID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "summary": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "title": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "version": {
+          "type": "int",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "IncidentPreviewsQuery": {
+      "source_pointer": "/models/IncidentPreviewsQuery",
+      "parser": "0x224048",
+      "fields": {
+        "limit": {
+          "type": "int",
+          "nullable_or_missing": false
+        },
+        "orderDirection": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "orderField": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "queryString": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "IncidentRef": {
+      "source_pointer": "/models/IncidentRef",
+      "parser": "0x22d000",
+      "fields": {
+        "key": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "ref": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "url": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "IncidentRoomPrefix": {
+      "source_pointer": "/models/IncidentRoomPrefix",
+      "parser": "0x22f4d4",
+      "fields": {
+        "description": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "prefix": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "IncidentStatusOption": {
+      "source_pointer": "/models/IncidentStatusOption",
+      "parser": "0x22f838",
+      "fields": {
+        "description": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "label": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "status": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "KeyUpdate": {
+      "source_pointer": "/models/KeyUpdate",
+      "parser": "0x238d6c",
+      "fields": {
+        "color": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "content": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "contentType": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "createdBy": {
+          "type": "UserPreview",
+          "nullable_or_missing": true
+        },
+        "createdTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "id": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "incidentID": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "lastModifiedBy": {
+          "type": "UserPreview",
+          "nullable_or_missing": true
+        },
+        "modifiedTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "orgID": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "scope": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "severityID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "statusID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "title": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "KeyUpdatesQuery": {
+      "source_pointer": "/models/KeyUpdatesQuery",
+      "parser": "0x2beec4",
+      "fields": {
+        "contentType": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incidentID": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "limit": {
+          "type": "int",
+          "nullable_or_missing": false
+        },
+        "orderDirection": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "orderField": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "scope": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "Org": {
+      "source_pointer": "/models/Org",
+      "parser": "0x22de10",
+      "fields": {
+        "actionEvents": {
+          "type": "ActionEvent[]",
+          "nullable_or_missing": true
+        },
+        "canSelfDestruct": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "chatopsStatus": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "createdAt": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "defaultSeverityID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "grafanaOrgID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "grafanaOrgSlug": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "grafanaStack": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "grafanaURL": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "importantActivities": {
+          "type": "ImportantActivityMatcher[]",
+          "nullable_or_missing": true
+        },
+        "incidentLabels": {
+          "type": "IncidentLabel[]",
+          "nullable_or_missing": true
+        },
+        "incidentRoomPrefixes": {
+          "type": "IncidentRoomPrefix[]",
+          "nullable_or_missing": true
+        },
+        "incidentStatuses": {
+          "type": "IncidentStatusOption[]",
+          "nullable_or_missing": true
+        },
+        "isSlackConnected": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "limited": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "orgID": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "ready": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "roles": {
+          "type": "Role[]",
+          "nullable_or_missing": true
+        },
+        "slackTeamID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "updatedAt": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "QueryActivityResponse": {
+      "source_pointer": "/models/QueryActivityResponse",
+      "parser": "0x2442c4",
+      "fields": {
+        "activityItems": {
+          "type": "ActivityItem[]",
+          "nullable_or_missing": true
+        },
+        "cursor": {
+          "type": "Cursor",
+          "nullable_or_missing": true
+        },
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "query": {
+          "type": "ActivityQuery",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "QueryIncidentContextResponse": {
+      "source_pointer": "/models/QueryIncidentContextResponse",
+      "parser": "0x2bbd78",
+      "fields": {
+        "cursor": {
+          "type": "Cursor",
+          "nullable_or_missing": true
+        },
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incidentContexts": {
+          "type": "IncidentContext[]",
+          "nullable_or_missing": true
+        },
+        "query": {
+          "type": "IncidentContextQuery",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "QueryIncidentPreviewsResponse": {
+      "source_pointer": "/models/QueryIncidentPreviewsResponse",
+      "parser": "0x223a14",
+      "fields": {
+        "cursor": {
+          "type": "Cursor",
+          "nullable_or_missing": true
+        },
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incidentPreviews": {
+          "type": "IncidentPreview[]",
+          "nullable_or_missing": true
+        },
+        "query": {
+          "type": "IncidentPreviewsQuery",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "QueryKeyUpdatesResponse": {
+      "source_pointer": "/models/QueryKeyUpdatesResponse",
+      "parser": "0x2beaf4",
+      "fields": {
+        "cursor": {
+          "type": "Cursor",
+          "nullable_or_missing": true
+        },
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "keyUpdates": {
+          "type": "KeyUpdate[]",
+          "nullable_or_missing": true
+        },
+        "query": {
+          "type": "KeyUpdatesQuery",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "QueryOrgStatusesResponse": {
+      "source_pointer": "/models/QueryOrgStatusesResponse",
+      "parser": "0x714520",
+      "fields": {
+        "configurations": {
+          "type": "StatusConfiguration[]",
+          "nullable_or_missing": true
+        },
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "ReactionCount": {
+      "source_pointer": "/models/ReactionCount",
+      "parser": "0x2428ac",
+      "fields": {
+        "count": {
+          "type": "int",
+          "nullable_or_missing": true
+        },
+        "people": {
+          "type": "UserPreview[]",
+          "nullable_or_missing": true
+        },
+        "reaction": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "ReactionsOverview": {
+      "source_pointer": "/models/ReactionsOverview",
+      "parser": "0x2424f8",
+      "fields": {
+        "reactionCounts": {
+          "type": "ReactionCount[]",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "RemoveReactionResponse": {
+      "source_pointer": "/models/RemoveReactionResponse",
+      "parser": "0x245b5c",
+      "fields": {
+        "didChange": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "reactionsOverview": {
+          "type": "ReactionsOverview",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "Role": {
+      "source_pointer": "/models/Role",
+      "parser": "0x22c590",
+      "fields": {
+        "archived": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "createdAt": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "description": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "hidden": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "important": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "mandatory": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "name": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "orgID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "roleID": {
+          "type": "int",
+          "nullable_or_missing": true
+        },
+        "updatedAt": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "Severity": {
+      "source_pointer": "/models/Severity",
+      "parser": "0x232b6c",
+      "fields": {
+        "archivedAt": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "archivedByUserID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "createdAt": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "darkColor": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "deletedAt": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "deletedByUserID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "description": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "displayLabel": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "iconName": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "level": {
+          "type": "int",
+          "nullable_or_missing": true
+        },
+        "lightColor": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "orgID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "severityID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "updatedAt": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "Status": {
+      "source_pointer": "/models/Status",
+      "parser": "0x714ca8",
+      "fields": {
+        "archivedTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "category": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "color": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "createdTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "description": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "icon": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "immutable": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "incidentType": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "kind": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "modifiedTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "name": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "orgID": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "position": {
+          "type": "int",
+          "nullable_or_missing": false
+        },
+        "slug": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "statusID": {
+          "type": "string",
+          "nullable_or_missing": false
+        }
+      }
+    },
+    "StatusConfiguration": {
+      "source_pointer": "/models/StatusConfiguration",
+      "parser": "0x714950",
+      "fields": {
+        "default": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "incidentType": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "statuses": {
+          "type": "Status[]",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "Task": {
+      "source_pointer": "/models/Task",
+      "parser": "0x229254",
+      "fields": {
+        "assignedUser": {
+          "type": "UserPreview",
+          "nullable_or_missing": true
+        },
+        "authorUser": {
+          "type": "UserPreview",
+          "nullable_or_missing": true
+        },
+        "context": {
+          "type": "IncidentContext",
+          "nullable_or_missing": true
+        },
+        "createdTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "immutable": {
+          "type": "bool",
+          "nullable_or_missing": false
+        },
+        "modifiedTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "order": {
+          "type": "int",
+          "nullable_or_missing": true
+        },
+        "status": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "statusKind": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "taskID": {
+          "type": "string",
+          "nullable_or_missing": false
+        },
+        "text": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "TaskList": {
+      "source_pointer": "/models/TaskList",
+      "parser": "0x228bf0",
+      "fields": {
+        "doneCount": {
+          "type": "int",
+          "nullable_or_missing": true
+        },
+        "tasks": {
+          "type": "Task[]",
+          "nullable_or_missing": true
+        },
+        "todoCount": {
+          "type": "int",
+          "nullable_or_missing": true
+        },
+        "totalCount": {
+          "type": "int",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "UnassignLabelByUUIDResponse": {
+      "source_pointer": "/models/UnassignLabelByUUIDResponse",
+      "parser": "0x235cc4",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "labels": {
+          "type": "IncidentKeyValueLabel[]",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "UnassignRoleResponse": {
+      "source_pointer": "/models/UnassignRoleResponse",
+      "parser": "0x620f74",
+      "fields": {
+        "didChange": {
+          "type": "bool",
+          "nullable_or_missing": true
+        },
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incident": {
+          "type": "Incident",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "UpdateDescriptionResponse": {
+      "source_pointer": "/models/UpdateDescriptionResponse",
+      "parser": "0x2373d0",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incident": {
+          "type": "Incident",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "UpdateSeverityResponse": {
+      "source_pointer": "/models/UpdateSeverityResponse",
+      "parser": "0x236f18",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incident": {
+          "type": "Incident",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "UpdateStatusResponse": {
+      "source_pointer": "/models/UpdateStatusResponse",
+      "parser": "0x235600",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incident": {
+          "type": "Incident",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "UpdateTitleResponse": {
+      "source_pointer": "/models/UpdateTitleResponse",
+      "parser": "0x2378bc",
+      "fields": {
+        "error": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "incident": {
+          "type": "Incident",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "User": {
+      "source_pointer": "/models/User",
+      "parser": "0x463ac0",
+      "fields": {
+        "chatbotOrgID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "chatbotUserID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "email": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "grafanaLogin": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "internalUserID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "modifiedTime": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "msTeamsUserID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "name": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "photoURL": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "slackTeamID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "slackUserID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "userID": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "UserPreview": {
+      "source_pointer": "/models/UserPreview",
+      "parser": "0x21f0b4",
+      "fields": {
+        "chatbotUserID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "email": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "grafanaLogin": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "msTeamsUserID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "name": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "photoURL": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "slackUserID": {
+          "type": "string",
+          "nullable_or_missing": true
+        },
+        "userID": {
+          "type": "string",
+          "nullable_or_missing": true
+        }
+      }
+    },
+    "UserPreviewList": {
+      "source_pointer": "/models/UserPreviewList",
+      "parser": "0x243ee4",
+      "fields": {
+        "userPreviews": {
+          "type": "UserPreview[]",
+          "nullable_or_missing": true
+        }
+      }
+    }
+  },
+  "methods": [
+    {
+      "method": "ActivityService.FilterActivity",
+      "response_model": "FilterActivityResponse",
+      "response_parser": "0x23ffa4",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "ActivityService.FilterActivity/success",
+          "http_status": 200,
+          "payload": {
+            "activityItems": [
+              {
+                "activityItemID": "activity-synthetic",
+                "activityKind": "userNote",
+                "attachments": null,
+                "body": "Synthetic note",
+                "bodyFormat": "text/markdown",
+                "bodyJSON": null,
+                "createdTime": "2026-10-16T00:00:00Z",
+                "eventTime": null,
+                "fieldValues": {},
+                "immutable": null,
+                "incidentID": "inc-synthetic",
+                "reactionsOverview": {
+                  "reactionCounts": [
+                    {
+                      "count": 1,
+                      "people": [
+                        {
+                          "chatbotUserID": null,
+                          "email": "target@example.invalid",
+                          "grafanaLogin": null,
+                          "msTeamsUserID": null,
+                          "name": "Synthetic Target",
+                          "photoURL": null,
+                          "slackUserID": null,
+                          "userID": "irm-target-opaque"
+                        }
+                      ],
+                      "reaction": "thumbsup"
+                    }
+                  ]
+                },
+                "recentComments": null,
+                "relevance": null,
+                "subjectUser": null,
+                "tags": [
+                  "synthetic"
+                ],
+                "url": null,
+                "user": {
+                  "chatbotUserID": null,
+                  "email": "target@example.invalid",
+                  "grafanaLogin": null,
+                  "msTeamsUserID": null,
+                  "name": "Synthetic Target",
+                  "photoURL": null,
+                  "slackUserID": null,
+                  "userID": "irm-target-opaque"
+                }
+              }
+            ],
+            "cursor": null,
+            "error": null,
+            "filter": {
+              "filter": "relevance:high",
+              "incidentID": "inc-synthetic",
+              "limit": 80,
+              "orderDirection": "DESC"
+            }
+          }
+        },
+        {
+          "source_fixture": "ActivityService.FilterActivity/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "activityItems": null,
+            "cursor": null,
+            "error": null,
+            "filter": null
+          }
+        },
+        {
+          "source_fixture": "ActivityService.FilterActivity/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "ActivityService.FilterActivity/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "ActivityService.QueryActivity",
+      "response_model": "QueryActivityResponse",
+      "response_parser": "0x2442c4",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "ActivityService.QueryActivity/success",
+          "http_status": 200,
+          "payload": {
+            "activityItems": [
+              {
+                "activityItemID": "activity-synthetic",
+                "activityKind": "userNote",
+                "attachments": null,
+                "body": "Synthetic note",
+                "bodyFormat": "text/markdown",
+                "bodyJSON": null,
+                "createdTime": "2026-10-16T00:00:00Z",
+                "eventTime": null,
+                "fieldValues": {},
+                "immutable": null,
+                "incidentID": "inc-synthetic",
+                "reactionsOverview": {
+                  "reactionCounts": [
+                    {
+                      "count": 1,
+                      "people": [
+                        {
+                          "chatbotUserID": null,
+                          "email": "target@example.invalid",
+                          "grafanaLogin": null,
+                          "msTeamsUserID": null,
+                          "name": "Synthetic Target",
+                          "photoURL": null,
+                          "slackUserID": null,
+                          "userID": "irm-target-opaque"
+                        }
+                      ],
+                      "reaction": "thumbsup"
+                    }
+                  ]
+                },
+                "recentComments": null,
+                "relevance": null,
+                "subjectUser": null,
+                "tags": [
+                  "synthetic"
+                ],
+                "url": null,
+                "user": {
+                  "chatbotUserID": null,
+                  "email": "target@example.invalid",
+                  "grafanaLogin": null,
+                  "msTeamsUserID": null,
+                  "name": "Synthetic Target",
+                  "photoURL": null,
+                  "slackUserID": null,
+                  "userID": "irm-target-opaque"
+                }
+              }
+            ],
+            "cursor": null,
+            "error": null,
+            "query": {
+              "activityKind": [
+                "userNote"
+              ],
+              "incidentID": "inc-synthetic",
+              "limit": 80,
+              "orderDirection": "DESC",
+              "tag": null,
+              "withBodyFormat": "text/markdown"
+            }
+          }
+        },
+        {
+          "source_fixture": "ActivityService.QueryActivity/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "activityItems": null,
+            "cursor": null,
+            "error": null,
+            "query": null
+          }
+        },
+        {
+          "source_fixture": "ActivityService.QueryActivity/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "ActivityService.QueryActivity/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "CommentsService.AddReaction",
+      "response_model": "AddReactionResponse",
+      "response_parser": "0x2461b8",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "CommentsService.AddReaction/success",
+          "http_status": 200,
+          "payload": {
+            "didChange": true,
+            "error": null,
+            "reactionsOverview": {
+              "reactionCounts": [
+                {
+                  "count": 1,
+                  "people": [
+                    {
+                      "chatbotUserID": null,
+                      "email": "target@example.invalid",
+                      "grafanaLogin": null,
+                      "msTeamsUserID": null,
+                      "name": "Synthetic Target",
+                      "photoURL": null,
+                      "slackUserID": null,
+                      "userID": "irm-target-opaque"
+                    }
+                  ],
+                  "reaction": "thumbsup"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "source_fixture": "CommentsService.AddReaction/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "didChange": null,
+            "error": null,
+            "reactionsOverview": null
+          }
+        },
+        {
+          "source_fixture": "CommentsService.AddReaction/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "CommentsService.AddReaction/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "CommentsService.RemoveReaction",
+      "response_model": "RemoveReactionResponse",
+      "response_parser": "0x245b5c",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "CommentsService.RemoveReaction/success",
+          "http_status": 200,
+          "payload": {
+            "didChange": true,
+            "error": null,
+            "reactionsOverview": {
+              "reactionCounts": [
+                {
+                  "count": 1,
+                  "people": [
+                    {
+                      "chatbotUserID": null,
+                      "email": "target@example.invalid",
+                      "grafanaLogin": null,
+                      "msTeamsUserID": null,
+                      "name": "Synthetic Target",
+                      "photoURL": null,
+                      "slackUserID": null,
+                      "userID": "irm-target-opaque"
+                    }
+                  ],
+                  "reaction": "thumbsup"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "source_fixture": "CommentsService.RemoveReaction/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "didChange": null,
+            "error": null,
+            "reactionsOverview": null
+          }
+        },
+        {
+          "source_fixture": "CommentsService.RemoveReaction/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "CommentsService.RemoveReaction/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "FieldsService.GetFields",
+      "response_model": "GetFieldsResponse",
+      "response_parser": "0x1fe454",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "FieldsService.GetFields/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "fields": [
+              {
+                "archived": null,
+                "color": null,
+                "defaultValue": null,
+                "description": null,
+                "domainName": "synthetic",
+                "exportAsMetric": null,
+                "externalID": null,
+                "icon": null,
+                "immutable": null,
+                "name": "synthetic",
+                "promptCompletion": null,
+                "required": null,
+                "selectoptions": null,
+                "slug": "synthetic",
+                "source": null,
+                "type": "synthetic",
+                "uuid": null,
+                "version": null
+              }
+            ]
+          }
+        },
+        {
+          "source_fixture": "FieldsService.GetFields/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "fields": null
+          }
+        },
+        {
+          "source_fixture": "FieldsService.GetFields/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "FieldsService.GetFields/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "IncidentContextService.AddIncidentContext",
+      "response_model": "AddIncidentContextResponse",
+      "response_parser": "0x233eb8",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "IncidentContextService.AddIncidentContext/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "incidentContext": {
+              "alertGroupID": null,
+              "contextID": null,
+              "createdByUser": null,
+              "createdTime": null,
+              "description": null,
+              "incidentID": null,
+              "lastRun": null,
+              "metadata": null,
+              "modifiedTime": null,
+              "payload": null,
+              "processError": null,
+              "processStatus": null,
+              "processorInfo": null,
+              "status": null,
+              "title": null,
+              "type": null
+            }
+          }
+        },
+        {
+          "source_fixture": "IncidentContextService.AddIncidentContext/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "incidentContext": null
+          }
+        },
+        {
+          "source_fixture": "IncidentContextService.AddIncidentContext/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "IncidentContextService.AddIncidentContext/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "IncidentContextService.QueryIncidentContext",
+      "response_model": "QueryIncidentContextResponse",
+      "response_parser": "0x2bbd78",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "IncidentContextService.QueryIncidentContext/success",
+          "http_status": 200,
+          "payload": {
+            "cursor": null,
+            "error": null,
+            "incidentContexts": [
+              {
+                "alertGroupID": null,
+                "contextID": null,
+                "createdByUser": null,
+                "createdTime": null,
+                "description": null,
+                "incidentID": null,
+                "lastRun": null,
+                "metadata": null,
+                "modifiedTime": null,
+                "payload": null,
+                "processError": null,
+                "processStatus": null,
+                "processorInfo": null,
+                "status": null,
+                "title": null,
+                "type": null
+              }
+            ],
+            "query": {
+              "alertGroupID": null,
+              "incidentID": "inc-synthetic",
+              "limit": 12,
+              "orderDirection": "DESC",
+              "orderField": null,
+              "payload": null,
+              "status": "attached",
+              "type": null
+            }
+          }
+        },
+        {
+          "source_fixture": "IncidentContextService.QueryIncidentContext/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "cursor": null,
+            "error": null,
+            "incidentContexts": null,
+            "query": null
+          }
+        },
+        {
+          "source_fixture": "IncidentContextService.QueryIncidentContext/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "IncidentContextService.QueryIncidentContext/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "IncidentsService.AssignLabelByUUID",
+      "response_model": "AssignLabelByUUIDResponse",
+      "response_parser": "0x236a70",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "IncidentsService.AssignLabelByUUID/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "labels": [
+              {
+                "colorHex": null,
+                "description": null,
+                "key": null,
+                "keyUUID": null,
+                "value": null,
+                "valueUUID": null
+              }
+            ]
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.AssignLabelByUUID/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "labels": null
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.AssignLabelByUUID/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.AssignLabelByUUID/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "IncidentsService.AssignRole",
+      "response_model": "AssignRoleResponse",
+      "response_parser": "0x62278c",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "IncidentsService.AssignRole/success",
+          "http_status": 200,
+          "payload": {
+            "didChange": true,
+            "error": null,
+            "incident": {
+              "closedTime": null,
+              "createdByUser": null,
+              "createdTime": "2026-10-16T00:00:00Z",
+              "description": null,
+              "descriptionModifiedTime": null,
+              "descriptionUser": null,
+              "durationSeconds": null,
+              "fieldGroupUUID": null,
+              "fieldValues": null,
+              "incidentChannels": null,
+              "incidentEnd": null,
+              "incidentHookRuns": null,
+              "incidentID": "inc-synthetic",
+              "incidentMembership": {
+                "assignments": [
+                  {
+                    "role": {
+                      "archived": false,
+                      "createdAt": null,
+                      "description": null,
+                      "hidden": false,
+                      "important": true,
+                      "mandatory": false,
+                      "name": "commander",
+                      "orgID": null,
+                      "roleID": 7,
+                      "updatedAt": null
+                    },
+                    "roleID": 7,
+                    "user": {
+                      "chatbotUserID": null,
+                      "email": "target@example.invalid",
+                      "grafanaLogin": null,
+                      "msTeamsUserID": null,
+                      "name": "Synthetic Target",
+                      "photoURL": null,
+                      "slackUserID": null,
+                      "userID": "irm-target-opaque"
+                    }
+                  }
+                ],
+                "totalAssignments": 1,
+                "totalParticipants": 1
+              },
+              "incidentStart": null,
+              "incidentType": null,
+              "isDrill": false,
+              "labels": null,
+              "modifiedTime": null,
+              "overviewURL": null,
+              "prefix": null,
+              "refs": null,
+              "severity": null,
+              "severityID": "sev-synthetic",
+              "slug": null,
+              "state": "active",
+              "status": null,
+              "statusID": "status-synthetic",
+              "statusModifiedByUser": null,
+              "statusModifiedTime": null,
+              "summary": null,
+              "taskList": null,
+              "title": "Synthetic incident",
+              "version": null
+            },
+            "role": null,
+            "userID": null
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.AssignRole/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "didChange": null,
+            "error": null,
+            "incident": null,
+            "role": null,
+            "userID": null
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.AssignRole/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.AssignRole/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "IncidentsService.CreateIncident",
+      "response_model": "CreateIncidentResponse",
+      "response_parser": "0x2349f4",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "IncidentsService.CreateIncident/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "incident": {
+              "closedTime": null,
+              "createdByUser": null,
+              "createdTime": "2026-10-16T00:00:00Z",
+              "description": null,
+              "descriptionModifiedTime": null,
+              "descriptionUser": null,
+              "durationSeconds": null,
+              "fieldGroupUUID": null,
+              "fieldValues": null,
+              "incidentChannels": null,
+              "incidentEnd": null,
+              "incidentHookRuns": null,
+              "incidentID": "inc-synthetic",
+              "incidentMembership": {
+                "assignments": [
+                  {
+                    "role": {
+                      "archived": false,
+                      "createdAt": null,
+                      "description": null,
+                      "hidden": false,
+                      "important": true,
+                      "mandatory": false,
+                      "name": "commander",
+                      "orgID": null,
+                      "roleID": 7,
+                      "updatedAt": null
+                    },
+                    "roleID": 7,
+                    "user": {
+                      "chatbotUserID": null,
+                      "email": "target@example.invalid",
+                      "grafanaLogin": null,
+                      "msTeamsUserID": null,
+                      "name": "Synthetic Target",
+                      "photoURL": null,
+                      "slackUserID": null,
+                      "userID": "irm-target-opaque"
+                    }
+                  }
+                ],
+                "totalAssignments": 1,
+                "totalParticipants": 1
+              },
+              "incidentStart": null,
+              "incidentType": null,
+              "isDrill": false,
+              "labels": null,
+              "modifiedTime": null,
+              "overviewURL": null,
+              "prefix": null,
+              "refs": null,
+              "severity": null,
+              "severityID": "sev-synthetic",
+              "slug": null,
+              "state": "active",
+              "status": null,
+              "statusID": "status-synthetic",
+              "statusModifiedByUser": null,
+              "statusModifiedTime": null,
+              "summary": null,
+              "taskList": null,
+              "title": "Synthetic incident",
+              "version": null
+            }
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.CreateIncident/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "incident": null
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.CreateIncident/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.CreateIncident/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "IncidentsService.GetIncident",
+      "response_model": "GetIncidentResponse",
+      "response_parser": "0x22d824",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "IncidentsService.GetIncident/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "incident": {
+              "closedTime": null,
+              "createdByUser": null,
+              "createdTime": "2026-10-16T00:00:00Z",
+              "description": null,
+              "descriptionModifiedTime": null,
+              "descriptionUser": null,
+              "durationSeconds": null,
+              "fieldGroupUUID": null,
+              "fieldValues": null,
+              "incidentChannels": null,
+              "incidentEnd": null,
+              "incidentHookRuns": null,
+              "incidentID": "inc-synthetic",
+              "incidentMembership": {
+                "assignments": [
+                  {
+                    "role": {
+                      "archived": false,
+                      "createdAt": null,
+                      "description": null,
+                      "hidden": false,
+                      "important": true,
+                      "mandatory": false,
+                      "name": "commander",
+                      "orgID": null,
+                      "roleID": 7,
+                      "updatedAt": null
+                    },
+                    "roleID": 7,
+                    "user": {
+                      "chatbotUserID": null,
+                      "email": "target@example.invalid",
+                      "grafanaLogin": null,
+                      "msTeamsUserID": null,
+                      "name": "Synthetic Target",
+                      "photoURL": null,
+                      "slackUserID": null,
+                      "userID": "irm-target-opaque"
+                    }
+                  }
+                ],
+                "totalAssignments": 1,
+                "totalParticipants": 1
+              },
+              "incidentStart": null,
+              "incidentType": null,
+              "isDrill": false,
+              "labels": null,
+              "modifiedTime": null,
+              "overviewURL": null,
+              "prefix": null,
+              "refs": null,
+              "severity": null,
+              "severityID": "sev-synthetic",
+              "slug": null,
+              "state": "active",
+              "status": null,
+              "statusID": "status-synthetic",
+              "statusModifiedByUser": null,
+              "statusModifiedTime": null,
+              "summary": null,
+              "taskList": null,
+              "title": "Synthetic incident",
+              "version": null
+            }
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.GetIncident/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "incident": null
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.GetIncident/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.GetIncident/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "IncidentsService.QueryIncidentPreviews",
+      "response_model": "QueryIncidentPreviewsResponse",
+      "response_parser": "0x223a14",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "IncidentsService.QueryIncidentPreviews/success",
+          "http_status": 200,
+          "payload": {
+            "cursor": null,
+            "error": null,
+            "incidentPreviews": [
+              {
+                "closedTime": null,
+                "createdByUser": null,
+                "createdTime": "2026-10-16T00:00:00Z",
+                "description": null,
+                "fieldValues": null,
+                "incidentChannels": null,
+                "incidentEnd": null,
+                "incidentID": "inc-synthetic",
+                "incidentMembershipPreview": {
+                  "importantAssignments": [
+                    {
+                      "roleID": 7,
+                      "user": {
+                        "chatbotUserID": null,
+                        "email": "target@example.invalid",
+                        "grafanaLogin": null,
+                        "msTeamsUserID": null,
+                        "name": "Synthetic Target",
+                        "photoURL": null,
+                        "slackUserID": null,
+                        "userID": "irm-target-opaque"
+                      }
+                    }
+                  ],
+                  "totalAssignments": 1,
+                  "totalParticipants": 1
+                },
+                "incidentStart": null,
+                "incidentType": null,
+                "isDrill": false,
+                "labels": null,
+                "modifiedTime": null,
+                "severityID": null,
+                "severityLabel": null,
+                "slug": null,
+                "state": "active",
+                "status": null,
+                "statusID": null,
+                "summary": null,
+                "title": "Synthetic incident",
+                "version": null
+              }
+            ],
+            "query": {
+              "limit": 100,
+              "orderDirection": "DESC",
+              "orderField": "createdTime",
+              "queryString": "state:'active'"
+            }
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.QueryIncidentPreviews/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "cursor": null,
+            "error": null,
+            "incidentPreviews": null,
+            "query": null
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.QueryIncidentPreviews/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.QueryIncidentPreviews/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "IncidentsService.UnassignLabelByUUID",
+      "response_model": "UnassignLabelByUUIDResponse",
+      "response_parser": "0x235cc4",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "IncidentsService.UnassignLabelByUUID/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "labels": [
+              {
+                "colorHex": null,
+                "description": null,
+                "key": null,
+                "keyUUID": null,
+                "value": null,
+                "valueUUID": null
+              }
+            ]
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UnassignLabelByUUID/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "labels": null
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UnassignLabelByUUID/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UnassignLabelByUUID/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "IncidentsService.UnassignRole",
+      "response_model": "UnassignRoleResponse",
+      "response_parser": "0x620f74",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "IncidentsService.UnassignRole/success",
+          "http_status": 200,
+          "payload": {
+            "didChange": true,
+            "error": null,
+            "incident": {
+              "closedTime": null,
+              "createdByUser": null,
+              "createdTime": "2026-10-16T00:00:00Z",
+              "description": null,
+              "descriptionModifiedTime": null,
+              "descriptionUser": null,
+              "durationSeconds": null,
+              "fieldGroupUUID": null,
+              "fieldValues": null,
+              "incidentChannels": null,
+              "incidentEnd": null,
+              "incidentHookRuns": null,
+              "incidentID": "inc-synthetic",
+              "incidentMembership": {
+                "assignments": [
+                  {
+                    "role": {
+                      "archived": false,
+                      "createdAt": null,
+                      "description": null,
+                      "hidden": false,
+                      "important": true,
+                      "mandatory": false,
+                      "name": "commander",
+                      "orgID": null,
+                      "roleID": 7,
+                      "updatedAt": null
+                    },
+                    "roleID": 7,
+                    "user": {
+                      "chatbotUserID": null,
+                      "email": "target@example.invalid",
+                      "grafanaLogin": null,
+                      "msTeamsUserID": null,
+                      "name": "Synthetic Target",
+                      "photoURL": null,
+                      "slackUserID": null,
+                      "userID": "irm-target-opaque"
+                    }
+                  }
+                ],
+                "totalAssignments": 1,
+                "totalParticipants": 1
+              },
+              "incidentStart": null,
+              "incidentType": null,
+              "isDrill": false,
+              "labels": null,
+              "modifiedTime": null,
+              "overviewURL": null,
+              "prefix": null,
+              "refs": null,
+              "severity": null,
+              "severityID": "sev-synthetic",
+              "slug": null,
+              "state": "active",
+              "status": null,
+              "statusID": "status-synthetic",
+              "statusModifiedByUser": null,
+              "statusModifiedTime": null,
+              "summary": null,
+              "taskList": null,
+              "title": "Synthetic incident",
+              "version": null
+            }
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UnassignRole/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "didChange": null,
+            "error": null,
+            "incident": null
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UnassignRole/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UnassignRole/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "IncidentsService.UpdateDescription",
+      "response_model": "UpdateDescriptionResponse",
+      "response_parser": "0x2373d0",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "IncidentsService.UpdateDescription/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "incident": {
+              "closedTime": null,
+              "createdByUser": null,
+              "createdTime": "2026-10-16T00:00:00Z",
+              "description": null,
+              "descriptionModifiedTime": null,
+              "descriptionUser": null,
+              "durationSeconds": null,
+              "fieldGroupUUID": null,
+              "fieldValues": null,
+              "incidentChannels": null,
+              "incidentEnd": null,
+              "incidentHookRuns": null,
+              "incidentID": "inc-synthetic",
+              "incidentMembership": {
+                "assignments": [
+                  {
+                    "role": {
+                      "archived": false,
+                      "createdAt": null,
+                      "description": null,
+                      "hidden": false,
+                      "important": true,
+                      "mandatory": false,
+                      "name": "commander",
+                      "orgID": null,
+                      "roleID": 7,
+                      "updatedAt": null
+                    },
+                    "roleID": 7,
+                    "user": {
+                      "chatbotUserID": null,
+                      "email": "target@example.invalid",
+                      "grafanaLogin": null,
+                      "msTeamsUserID": null,
+                      "name": "Synthetic Target",
+                      "photoURL": null,
+                      "slackUserID": null,
+                      "userID": "irm-target-opaque"
+                    }
+                  }
+                ],
+                "totalAssignments": 1,
+                "totalParticipants": 1
+              },
+              "incidentStart": null,
+              "incidentType": null,
+              "isDrill": false,
+              "labels": null,
+              "modifiedTime": null,
+              "overviewURL": null,
+              "prefix": null,
+              "refs": null,
+              "severity": null,
+              "severityID": "sev-synthetic",
+              "slug": null,
+              "state": "active",
+              "status": null,
+              "statusID": "status-synthetic",
+              "statusModifiedByUser": null,
+              "statusModifiedTime": null,
+              "summary": null,
+              "taskList": null,
+              "title": "Synthetic incident",
+              "version": null
+            }
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UpdateDescription/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "incident": null
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UpdateDescription/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UpdateDescription/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "IncidentsService.UpdateSeverity",
+      "response_model": "UpdateSeverityResponse",
+      "response_parser": "0x236f18",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "IncidentsService.UpdateSeverity/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "incident": {
+              "closedTime": null,
+              "createdByUser": null,
+              "createdTime": "2026-10-16T00:00:00Z",
+              "description": null,
+              "descriptionModifiedTime": null,
+              "descriptionUser": null,
+              "durationSeconds": null,
+              "fieldGroupUUID": null,
+              "fieldValues": null,
+              "incidentChannels": null,
+              "incidentEnd": null,
+              "incidentHookRuns": null,
+              "incidentID": "inc-synthetic",
+              "incidentMembership": {
+                "assignments": [
+                  {
+                    "role": {
+                      "archived": false,
+                      "createdAt": null,
+                      "description": null,
+                      "hidden": false,
+                      "important": true,
+                      "mandatory": false,
+                      "name": "commander",
+                      "orgID": null,
+                      "roleID": 7,
+                      "updatedAt": null
+                    },
+                    "roleID": 7,
+                    "user": {
+                      "chatbotUserID": null,
+                      "email": "target@example.invalid",
+                      "grafanaLogin": null,
+                      "msTeamsUserID": null,
+                      "name": "Synthetic Target",
+                      "photoURL": null,
+                      "slackUserID": null,
+                      "userID": "irm-target-opaque"
+                    }
+                  }
+                ],
+                "totalAssignments": 1,
+                "totalParticipants": 1
+              },
+              "incidentStart": null,
+              "incidentType": null,
+              "isDrill": false,
+              "labels": null,
+              "modifiedTime": null,
+              "overviewURL": null,
+              "prefix": null,
+              "refs": null,
+              "severity": null,
+              "severityID": "sev-synthetic",
+              "slug": null,
+              "state": "active",
+              "status": null,
+              "statusID": "status-synthetic",
+              "statusModifiedByUser": null,
+              "statusModifiedTime": null,
+              "summary": null,
+              "taskList": null,
+              "title": "Synthetic incident",
+              "version": null
+            }
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UpdateSeverity/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "incident": null
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UpdateSeverity/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UpdateSeverity/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "IncidentsService.UpdateStatus",
+      "response_model": "UpdateStatusResponse",
+      "response_parser": "0x235600",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "IncidentsService.UpdateStatus/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "incident": {
+              "closedTime": null,
+              "createdByUser": null,
+              "createdTime": "2026-10-16T00:00:00Z",
+              "description": null,
+              "descriptionModifiedTime": null,
+              "descriptionUser": null,
+              "durationSeconds": null,
+              "fieldGroupUUID": null,
+              "fieldValues": null,
+              "incidentChannels": null,
+              "incidentEnd": null,
+              "incidentHookRuns": null,
+              "incidentID": "inc-synthetic",
+              "incidentMembership": {
+                "assignments": [
+                  {
+                    "role": {
+                      "archived": false,
+                      "createdAt": null,
+                      "description": null,
+                      "hidden": false,
+                      "important": true,
+                      "mandatory": false,
+                      "name": "commander",
+                      "orgID": null,
+                      "roleID": 7,
+                      "updatedAt": null
+                    },
+                    "roleID": 7,
+                    "user": {
+                      "chatbotUserID": null,
+                      "email": "target@example.invalid",
+                      "grafanaLogin": null,
+                      "msTeamsUserID": null,
+                      "name": "Synthetic Target",
+                      "photoURL": null,
+                      "slackUserID": null,
+                      "userID": "irm-target-opaque"
+                    }
+                  }
+                ],
+                "totalAssignments": 1,
+                "totalParticipants": 1
+              },
+              "incidentStart": null,
+              "incidentType": null,
+              "isDrill": false,
+              "labels": null,
+              "modifiedTime": null,
+              "overviewURL": null,
+              "prefix": null,
+              "refs": null,
+              "severity": null,
+              "severityID": "sev-synthetic",
+              "slug": null,
+              "state": "active",
+              "status": null,
+              "statusID": "status-synthetic",
+              "statusModifiedByUser": null,
+              "statusModifiedTime": null,
+              "summary": null,
+              "taskList": null,
+              "title": "Synthetic incident",
+              "version": null
+            }
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UpdateStatus/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "incident": null
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UpdateStatus/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UpdateStatus/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "IncidentsService.UpdateTitle",
+      "response_model": "UpdateTitleResponse",
+      "response_parser": "0x2378bc",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "IncidentsService.UpdateTitle/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "incident": {
+              "closedTime": null,
+              "createdByUser": null,
+              "createdTime": "2026-10-16T00:00:00Z",
+              "description": null,
+              "descriptionModifiedTime": null,
+              "descriptionUser": null,
+              "durationSeconds": null,
+              "fieldGroupUUID": null,
+              "fieldValues": null,
+              "incidentChannels": null,
+              "incidentEnd": null,
+              "incidentHookRuns": null,
+              "incidentID": "inc-synthetic",
+              "incidentMembership": {
+                "assignments": [
+                  {
+                    "role": {
+                      "archived": false,
+                      "createdAt": null,
+                      "description": null,
+                      "hidden": false,
+                      "important": true,
+                      "mandatory": false,
+                      "name": "commander",
+                      "orgID": null,
+                      "roleID": 7,
+                      "updatedAt": null
+                    },
+                    "roleID": 7,
+                    "user": {
+                      "chatbotUserID": null,
+                      "email": "target@example.invalid",
+                      "grafanaLogin": null,
+                      "msTeamsUserID": null,
+                      "name": "Synthetic Target",
+                      "photoURL": null,
+                      "slackUserID": null,
+                      "userID": "irm-target-opaque"
+                    }
+                  }
+                ],
+                "totalAssignments": 1,
+                "totalParticipants": 1
+              },
+              "incidentStart": null,
+              "incidentType": null,
+              "isDrill": false,
+              "labels": null,
+              "modifiedTime": null,
+              "overviewURL": null,
+              "prefix": null,
+              "refs": null,
+              "severity": null,
+              "severityID": "sev-synthetic",
+              "slug": null,
+              "state": "active",
+              "status": null,
+              "statusID": "status-synthetic",
+              "statusModifiedByUser": null,
+              "statusModifiedTime": null,
+              "summary": null,
+              "taskList": null,
+              "title": "Synthetic incident",
+              "version": null
+            }
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UpdateTitle/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "incident": null
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UpdateTitle/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "IncidentsService.UpdateTitle/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "KeyUpdatesService.CreateKeyUpdate",
+      "response_model": "CreateKeyUpdateResponse",
+      "response_parser": "0x238b20",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "KeyUpdatesService.CreateKeyUpdate/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "keyUpdate": {
+              "color": null,
+              "content": null,
+              "contentType": "synthetic",
+              "createdBy": null,
+              "createdTime": null,
+              "id": "synthetic",
+              "incidentID": "synthetic",
+              "lastModifiedBy": null,
+              "modifiedTime": null,
+              "orgID": "synthetic",
+              "scope": "synthetic",
+              "severityID": null,
+              "statusID": null,
+              "title": null
+            }
+          }
+        },
+        {
+          "source_fixture": "KeyUpdatesService.CreateKeyUpdate/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "keyUpdate": null
+          }
+        },
+        {
+          "source_fixture": "KeyUpdatesService.CreateKeyUpdate/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "KeyUpdatesService.CreateKeyUpdate/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "KeyUpdatesService.GetLastKeyUpdate",
+      "response_model": "GetLastKeyUpdateResponse",
+      "response_parser": "0x23f42c",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "KeyUpdatesService.GetLastKeyUpdate/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "keyUpdate": {
+              "color": null,
+              "content": null,
+              "contentType": "synthetic",
+              "createdBy": null,
+              "createdTime": null,
+              "id": "synthetic",
+              "incidentID": "synthetic",
+              "lastModifiedBy": null,
+              "modifiedTime": null,
+              "orgID": "synthetic",
+              "scope": "synthetic",
+              "severityID": null,
+              "statusID": null,
+              "title": null
+            },
+            "keyUpdateCount": null
+          }
+        },
+        {
+          "source_fixture": "KeyUpdatesService.GetLastKeyUpdate/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "keyUpdate": null,
+            "keyUpdateCount": null
+          }
+        },
+        {
+          "source_fixture": "KeyUpdatesService.GetLastKeyUpdate/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "KeyUpdatesService.GetLastKeyUpdate/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "KeyUpdatesService.QueryKeyUpdates",
+      "response_model": "QueryKeyUpdatesResponse",
+      "response_parser": "0x2beaf4",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "KeyUpdatesService.QueryKeyUpdates/success",
+          "http_status": 200,
+          "payload": {
+            "cursor": null,
+            "error": null,
+            "keyUpdates": [
+              {
+                "color": null,
+                "content": null,
+                "contentType": "synthetic",
+                "createdBy": null,
+                "createdTime": null,
+                "id": "synthetic",
+                "incidentID": "synthetic",
+                "lastModifiedBy": null,
+                "modifiedTime": null,
+                "orgID": "synthetic",
+                "scope": "synthetic",
+                "severityID": null,
+                "statusID": null,
+                "title": null
+              }
+            ],
+            "query": {
+              "contentType": null,
+              "incidentID": "inc-synthetic",
+              "limit": 20,
+              "orderDirection": "DESC",
+              "orderField": null,
+              "scope": null
+            }
+          }
+        },
+        {
+          "source_fixture": "KeyUpdatesService.QueryKeyUpdates/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "cursor": null,
+            "error": null,
+            "keyUpdates": null,
+            "query": null
+          }
+        },
+        {
+          "source_fixture": "KeyUpdatesService.QueryKeyUpdates/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "KeyUpdatesService.QueryKeyUpdates/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "OrgService.GetOrg",
+      "response_model": "GetOrgResponse",
+      "response_parser": "0x230654",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "OrgService.GetOrg/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "org": {
+              "actionEvents": null,
+              "canSelfDestruct": null,
+              "chatopsStatus": null,
+              "createdAt": null,
+              "defaultSeverityID": null,
+              "grafanaOrgID": null,
+              "grafanaOrgSlug": null,
+              "grafanaStack": null,
+              "grafanaURL": null,
+              "importantActivities": null,
+              "incidentLabels": [],
+              "incidentRoomPrefixes": [],
+              "incidentStatuses": [],
+              "isSlackConnected": null,
+              "limited": null,
+              "orgID": "org-synthetic",
+              "ready": null,
+              "roles": [
+                {
+                  "archived": false,
+                  "createdAt": null,
+                  "description": null,
+                  "hidden": false,
+                  "important": true,
+                  "mandatory": false,
+                  "name": "commander",
+                  "orgID": null,
+                  "roleID": 7,
+                  "updatedAt": null
+                }
+              ],
+              "slackTeamID": null,
+              "updatedAt": null
+            }
+          }
+        },
+        {
+          "source_fixture": "OrgService.GetOrg/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "org": null
+          }
+        },
+        {
+          "source_fixture": "OrgService.GetOrg/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "OrgService.GetOrg/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "OrgService.GetOrgStatus",
+      "response_model": "GetOrgStatusResponse",
+      "response_parser": "0x231670",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "OrgService.GetOrgStatus/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "isEnabled": null,
+            "isHealthy": null,
+            "isSetup": null,
+            "orgID": null
+          }
+        },
+        {
+          "source_fixture": "OrgService.GetOrgStatus/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "isEnabled": null,
+            "isHealthy": null,
+            "isSetup": null,
+            "orgID": null
+          }
+        },
+        {
+          "source_fixture": "OrgService.GetOrgStatus/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "OrgService.GetOrgStatus/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "SeveritiesService.GetOrgSeverities",
+      "response_model": "GetOrgSeveritiesResponse",
+      "response_parser": "0x23280c",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "SeveritiesService.GetOrgSeverities/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "severities": [
+              {
+                "archivedAt": null,
+                "archivedByUserID": null,
+                "createdAt": null,
+                "darkColor": null,
+                "deletedAt": null,
+                "deletedByUserID": null,
+                "description": null,
+                "displayLabel": null,
+                "iconName": null,
+                "level": null,
+                "lightColor": null,
+                "orgID": null,
+                "severityID": null,
+                "updatedAt": null
+              }
+            ]
+          }
+        },
+        {
+          "source_fixture": "SeveritiesService.GetOrgSeverities/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "severities": null
+          }
+        },
+        {
+          "source_fixture": "SeveritiesService.GetOrgSeverities/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "SeveritiesService.GetOrgSeverities/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "StatusService.QueryOrgStatuses",
+      "response_model": "QueryOrgStatusesResponse",
+      "response_parser": "0x714520",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "StatusService.QueryOrgStatuses/success",
+          "http_status": 200,
+          "payload": {
+            "configurations": [
+              {
+                "default": null,
+                "incidentType": null,
+                "statuses": null
+              }
+            ],
+            "error": null
+          }
+        },
+        {
+          "source_fixture": "StatusService.QueryOrgStatuses/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "configurations": null,
+            "error": null
+          }
+        },
+        {
+          "source_fixture": "StatusService.QueryOrgStatuses/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "StatusService.QueryOrgStatuses/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "UsersService.AutocompleteUsers",
+      "response_model": "AutocompleteUsersResponse",
+      "response_parser": "0x464fa0",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "UsersService.AutocompleteUsers/success",
+          "http_status": 200,
+          "payload": {
+            "cacheStatus": null,
+            "error": null,
+            "users": [
+              {
+                "chatbotUserID": null,
+                "email": "target@example.invalid",
+                "grafanaLogin": null,
+                "msTeamsUserID": null,
+                "name": "Synthetic Target",
+                "photoURL": null,
+                "slackUserID": null,
+                "userID": "irm-target-opaque"
+              }
+            ]
+          }
+        },
+        {
+          "source_fixture": "UsersService.AutocompleteUsers/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "cacheStatus": null,
+            "error": null,
+            "users": null
+          }
+        },
+        {
+          "source_fixture": "UsersService.AutocompleteUsers/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "UsersService.AutocompleteUsers/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "UsersService.GetSession",
+      "response_model": "GetSessionResponse",
+      "response_parser": "0x71d59c",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "UsersService.GetSession/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "user": {
+              "chatbotOrgID": null,
+              "chatbotUserID": null,
+              "email": null,
+              "grafanaLogin": "synthetic-login",
+              "internalUserID": "internal-distinct",
+              "modifiedTime": null,
+              "msTeamsUserID": null,
+              "name": null,
+              "photoURL": null,
+              "slackTeamID": null,
+              "slackUserID": null,
+              "userID": "irm-actor-opaque"
+            }
+          }
+        },
+        {
+          "source_fixture": "UsersService.GetSession/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "user": null
+          }
+        },
+        {
+          "source_fixture": "UsersService.GetSession/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "UsersService.GetSession/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    },
+    {
+      "method": "UsersService.GetUser",
+      "response_model": "GetUserResponse",
+      "response_parser": "0x463838",
+      "success_http_status": 200,
+      "non_200_model": "Error",
+      "cases": [
+        {
+          "source_fixture": "UsersService.GetUser/success",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "user": {
+              "chatbotOrgID": null,
+              "chatbotUserID": null,
+              "email": null,
+              "grafanaLogin": "synthetic-login",
+              "internalUserID": "internal-distinct",
+              "modifiedTime": null,
+              "msTeamsUserID": null,
+              "name": null,
+              "photoURL": null,
+              "slackTeamID": null,
+              "slackUserID": null,
+              "userID": "irm-actor-opaque"
+            }
+          }
+        },
+        {
+          "source_fixture": "UsersService.GetUser/native-null-fields",
+          "http_status": 200,
+          "payload": {
+            "error": null,
+            "user": null
+          }
+        },
+        {
+          "source_fixture": "UsersService.GetUser/application-error",
+          "http_status": 200,
+          "payload": {
+            "error": "synthetic application error"
+          }
+        },
+        {
+          "source_fixture": "UsersService.GetUser/http-error",
+          "http_status": 403,
+          "payload": {
+            "error": "synthetic authorization error"
+          }
+        }
+      ]
+    }
+  ]
+}

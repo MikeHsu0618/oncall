@@ -135,6 +135,49 @@ class MobileAppUserSettingsViewSet(
         return Response(choices)
 
 
+class MobileAppLogoutAPIView(APIView):
+    """
+    Server-side half of the mobile app's sign-out (`DELETE api/internal/v1/mobile_app/logout`).
+
+    Revokes the mobile app auth token used for the request. Push devices are deliberately left untouched:
+    the app sends no body and no device/registration id on logout (AuthenticationRemoteDataSource.logout only
+    issues the bare DELETE through OnCallHttpClient, whose interceptors add auth/user-agent only), and
+    FCMDevice has no link to MobileAppAuthToken, so the server cannot tell which of the user's devices is the
+    signing-out phone. Deactivating all of them would silently stop pushes on the user's other phones.
+    Repeating the call with the same token is rejected by authentication (403) because the token no longer
+    exists; no state is changed by a repeat.
+    """
+
+    authentication_classes = (MobileAppAuthTokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    def delete(self, request):
+        # Hard delete, same as MobileAppAuthTokenAPIView.delete, so a new token can be issued on next login.
+        request.auth.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MobileAppNotificationHistoryAPIView(APIView):
+    """
+    `GET api/internal/v1/mobile_app/notification_history/`, read by the app's notification history page and by
+    its missed-push poller.
+
+    The app parses the body as a bare JSON array of log objects ({id: str, notification_type: str, title,
+    subtitle, sent_at: ISO str, fcm_payload, alert_group?, shift_swap_request?, schedule?, schedule_event?,
+    incident_data?}), not a paginated envelope.
+
+    OnCall OSS does not persist the push payloads it sends, so this returns an empty list. Synthesizing entries
+    from notification log records is unsafe: the missed-push poller rebuilds a push from `fcm_payload` and shows
+    it, so a payload that does not match what was actually delivered would re-notify the user.
+    """
+
+    authentication_classes = (MobileAppAuthTokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        return Response([], status=status.HTTP_200_OK)
+
+
 class MobileAppGatewayView(APIView):
     authentication_classes = (MobileAppAuthTokenAuthentication,)
     permission_classes = (IsAuthenticated,)

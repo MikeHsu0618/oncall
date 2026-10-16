@@ -37,6 +37,7 @@ from .views.slack_team_settings import (
     SlackTeamSettingsAPIView,
     UnAcknowledgeTimeoutOptionsAPIView,
 )
+from .views.source_phone_numbers import SourcePhoneNumbersView
 from .views.team import TeamViewSet
 from .views.telegram_channels import TelegramChannelViewSet
 from .views.user import CurrentUserView, UserView
@@ -103,6 +104,7 @@ urlpatterns = [
         name="unacknowledge-timeout-options",
     ),
     optional_slash_path("features", FeaturesAPIView.as_view(), name="features"),
+    optional_slash_path("source_phone_numbers", SourcePhoneNumbersView.as_view(), name="source_phone_numbers"),
     optional_slash_path(
         "preview_template_options", PreviewTemplateOptionsView.as_view(), name="preview_template_options"
     ),

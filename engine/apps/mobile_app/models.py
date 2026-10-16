@@ -162,6 +162,15 @@ class MobileAppUserSettings(models.Model):
     )
     info_notification_volume_override = models.BooleanField(default=False, null=True)
 
+    # Per-type "Override DND" switches the mobile app sends for default and info pushes. The app parses a
+    # missing value as false, so false is the default here as well (non-critical pushes respect DND).
+    default_notification_override_dnd = models.BooleanField(default=False)
+    info_notification_override_dnd = models.BooleanField(default=False)
+
+    # "Incident notifications" switch (status updates in incidents where the user is a participant).
+    # Defaults to false, matching the mobile app's own fallback when the field is absent.
+    incident_notifications_enabled = models.BooleanField(default=False)
+
     # these choices + the below column are used to calculate when to send the "You're Going OnCall soon"
     # push notification
     FIFTEEN_MINUTES_IN_SECONDS = 15 * 60
