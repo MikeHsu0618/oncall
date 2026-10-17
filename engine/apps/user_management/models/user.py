@@ -68,6 +68,7 @@ def default_working_hours():
 # Grafana's avatar route, optionally under its sub-path: /avatar/<md5 or sha256 hex of the email>.
 GRAFANA_AVATAR_PATH = re.compile(r"^(?:/[^?#]*)?/avatar/([0-9a-f]{32}|[0-9a-f]{64})$")
 
+
 class UserManager(models.Manager["User"]):
     pass
 
