@@ -177,18 +177,8 @@ def test_get_notification_subtitle_no_locale(
 
 @mock.patch("apps.mobile_app.tasks.going_oncall_notification._get_notification_subtitle")
 @mock.patch("apps.mobile_app.tasks.going_oncall_notification._get_notification_title")
-@mock.patch("apps.mobile_app.tasks.going_oncall_notification.construct_fcm_message")
-@mock.patch("apps.mobile_app.tasks.going_oncall_notification.APNSPayload")
-@mock.patch("apps.mobile_app.tasks.going_oncall_notification.Aps")
-@mock.patch("apps.mobile_app.tasks.going_oncall_notification.ApsAlert")
-@mock.patch("apps.mobile_app.tasks.going_oncall_notification.CriticalSound")
 @pytest.mark.django_db
 def test_get_fcm_message(
-    mock_critical_sound,
-    mock_aps_alert,
-    mock_aps,
-    mock_apns_payload,
-    mock_construct_fcm_message,
     mock_get_notification_title,
     mock_get_notification_subtitle,
     make_organization,
@@ -202,13 +192,11 @@ def test_get_fcm_message(
     schedule = make_schedule(organization, schedule_class=OnCallScheduleWeb)
     notification_thread_id = f"{schedule.public_primary_key}:{user_pk}:going-oncall"
 
-    mock_fcm_message = "mncvmnvcmnvcnmvcmncvmn"
     mock_notification_title = "asdfasdf"
     mock_notification_subtitle = "9:06\u202fAM - 9:06\u202fAM\nSchedule XYZ"
     shift_pk = "mncvmnvc"
     seconds_until_going_oncall = 600
 
-    mock_construct_fcm_message.return_value = mock_fcm_message
     mock_get_notification_title.return_value = mock_notification_title
     mock_get_notification_subtitle.return_value = mock_notification_subtitle
 
@@ -223,10 +211,13 @@ def test_get_fcm_message(
         ],
     )
 
-    device = FCMDevice.objects.create(user=user)
     maus = MobileAppUserSettings.objects.create(user=user, time_zone=user_tz)
 
-    data = {
+    fcm_message = _get_fcm_message(user, schedule, seconds_until_going_oncall, schedule_event)
+
+    # the message is built without a device token, send_push_notification addresses it to each device
+    assert fcm_message.token is None
+    assert fcm_message.data == {
         "title": mock_notification_title,
         "subtitle": mock_notification_subtitle,
         "orgName": organization.stack_slug,
@@ -234,32 +225,22 @@ def test_get_fcm_message(
         "info_notification_volume_type": maus.info_notification_volume_type,
         "info_notification_volume": str(maus.info_notification_volume),
         "info_notification_volume_override": json.dumps(maus.info_notification_volume_override),
+        "info_notification_override_dnd": "false",
+        "type": MessageType.INFO,
+        "thread_id": notification_thread_id,
     }
 
-    fcm_message = _get_fcm_message(user, schedule, device, seconds_until_going_oncall, schedule_event)
-
-    assert fcm_message == mock_fcm_message
-
-    mock_aps_alert.assert_called_once_with(title=mock_notification_title, body=mock_notification_subtitle)
-    mock_critical_sound.assert_called_once_with(
-        critical=False, name=maus.get_notification_sound_name(MessageType.INFO, Platform.IOS)
-    )
-    mock_aps.assert_called_once_with(
-        thread_id=notification_thread_id,
-        alert=mock_aps_alert.return_value,
-        sound=mock_critical_sound.return_value,
-        custom_data={
-            "interruption-level": "time-sensitive",
-        },
-    )
-    mock_apns_payload.assert_called_once_with(aps=mock_aps.return_value)
+    aps = fcm_message.apns.payload.aps
+    assert aps.thread_id == notification_thread_id
+    assert aps.alert.title == mock_notification_title
+    assert aps.alert.body == mock_notification_subtitle
+    assert aps.sound.critical is False
+    assert aps.sound.name == maus.get_notification_sound_name(MessageType.INFO, Platform.IOS)
+    assert aps.sound.volume is None
+    assert aps.custom_data == {"interruption-level": "time-sensitive"}
 
     mock_get_notification_subtitle.assert_called_once_with(schedule, schedule_event, maus)
     mock_get_notification_title.assert_called_once_with(seconds_until_going_oncall)
-
-    mock_construct_fcm_message.assert_called_once_with(
-        MessageType.INFO, device, notification_thread_id, data, mock_apns_payload.return_value
-    )
 
 
 @pytest.mark.parametrize(
@@ -446,8 +427,8 @@ def test_conditionally_send_going_oncall_push_notifications_for_schedule(
 
     conditionally_send_going_oncall_push_notifications_for_schedule(schedule.pk)
 
-    mock_get_fcm_message.assert_called_once_with(user, schedule, device, seconds_until_shift_starts, schedule_event)
-    mock_send_push_notification.assert_called_once_with(device, mock_fcm_message)
+    mock_get_fcm_message.assert_called_once_with(user, schedule, seconds_until_shift_starts, schedule_event)
+    mock_send_push_notification.assert_called_once_with(user, [device], mock_fcm_message)
     assert cache.get(cache_key) is True
 
     # we shouldn't double send the same push notification for the same user/shift

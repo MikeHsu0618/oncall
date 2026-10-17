@@ -15,8 +15,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.mobile_app.auth import MobileAppAuthTokenAuthentication, MobileAppVerificationTokenAuthentication
-from apps.mobile_app.models import FCMDevice, MobileAppAuthToken, MobileAppUserSettings
-from apps.mobile_app.serializers import FCMDeviceSerializer, MobileAppUserSettingsSerializer
+from apps.mobile_app.models import FCMDevice, MobileAppAuthToken, MobileAppPushRecord, MobileAppUserSettings
+from apps.mobile_app.serializers import (
+    FCMDeviceSerializer,
+    MobileAppPushRecordSerializer,
+    MobileAppUserSettingsSerializer,
+)
 from common.cloud_auth_api.client import CloudAuthApiClient, CloudAuthApiException
 
 if typing.TYPE_CHECKING:
@@ -166,16 +170,19 @@ class MobileAppNotificationHistoryAPIView(APIView):
     subtitle, sent_at: ISO str, fcm_payload, alert_group?, shift_swap_request?, schedule?, schedule_event?,
     incident_data?}), not a paginated envelope.
 
-    OnCall OSS does not persist the push payloads it sends, so this returns an empty list. Synthesizing entries
-    from notification log records is unsafe: the missed-push poller rebuilds a push from `fcm_payload` and shows
-    it, so a payload that does not match what was actually delivered would re-notify the user.
+    Entries are the pushes recorded by apps.mobile_app.utils.send_push_notification after a successful hand-off,
+    newest first. `fcm_payload` is exactly the FCM data payload that was sent, because the missed-push poller
+    rebuilds and shows a push from it.
     """
 
     authentication_classes = (MobileAppAuthTokenAuthentication,)
     permission_classes = (IsAuthenticated,)
 
     def get(self, request):
-        return Response([], status=status.HTTP_200_OK)
+        records = MobileAppPushRecord.newest_for_user(request.user).select_related("alert_group__channel")[
+            : MobileAppPushRecord.MAX_RECORDS_PER_USER
+        ]
+        return Response(MobileAppPushRecordSerializer(records, many=True).data, status=status.HTTP_200_OK)
 
 
 class MobileAppGatewayView(APIView):

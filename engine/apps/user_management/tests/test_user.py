@@ -342,3 +342,27 @@ def test_filter_by_permission(make_organization, make_user_for_organization):
     assert len(users) == 2
     assert user7 in users
     assert user8 in users
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "avatar_url,expected",
+    [
+        (
+            "/avatar/7ba684f146c9445720e4b9a8d6ed775de4804bc2dbe01fb6490b8cce05db9f43",
+            "https://secure.gravatar.com/avatar/7ba684f146c9445720e4b9a8d6ed775de4804bc2dbe01fb6490b8cce05db9f43?d=retro&r=pg&size=200",
+        ),
+        (
+            "/grafana/avatar/0123456789abcdef0123456789abcdef",
+            "https://secure.gravatar.com/avatar/0123456789abcdef0123456789abcdef?d=retro&r=pg&size=200",
+        ),
+        ("/public/img/user_profile.png", "http://grafana.example/public/img/user_profile.png"),
+        ("https://cdn.example/a.png", "https://cdn.example/a.png"),
+    ],
+)
+def test_avatar_full_url_serves_grafana_avatars_without_a_session(
+    make_organization, make_user_for_organization, avatar_url, expected
+):
+    organization = make_organization(grafana_url="http://grafana.example")
+    user = make_user_for_organization(organization, avatar_url=avatar_url)
+    assert user.avatar_full_url(organization) == expected

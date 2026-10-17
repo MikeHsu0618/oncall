@@ -3,14 +3,13 @@ from unittest.mock import PropertyMock, patch
 import pytest
 from django.core.cache import cache
 from django.utils import timezone
-from firebase_admin.messaging import Message
 
 from apps.mobile_app.models import FCMDevice, MobileAppUserSettings
 from apps.mobile_app.tasks.new_shift_swap_request import (
     _get_notification_title_and_subtitle,
     _get_shift_swap_request,
     _get_shift_swap_requests_to_notify,
-    _get_user_and_device,
+    _get_user_and_devices,
     _has_user_been_notified_for_shift_swap_request,
     _mark_shift_swap_request_notified_for_user,
     _should_notify_user_about_shift_swap_request,
@@ -244,12 +243,12 @@ def test_notify_shift_swap_request_success(
     mock_notify_user_about_shift_swap_request.assert_called_once_with(shift_swap_request.pk, benefactor.pk)
 
 
-@patch("apps.mobile_app.tasks.new_shift_swap_request._get_user_and_device")
+@patch("apps.mobile_app.tasks.new_shift_swap_request._get_user_and_devices")
 @patch("apps.mobile_app.tasks.new_shift_swap_request.send_push_notification")
 @pytest.mark.django_db
 def test_notify_user_about_shift_swap_request(
     mock_send_push_notification,
-    mock_get_user_and_device,
+    mock_get_user_and_devices,
     make_organization,
     make_user,
     make_schedule,
@@ -271,21 +270,21 @@ def test_notify_user_about_shift_swap_request(
         schedule, beneficiary, swap_start=swap_start, swap_end=swap_end, created_at=now
     )
 
-    mock_get_user_and_device.return_value = None
+    mock_get_user_and_devices.return_value = None
     notify_user_about_shift_swap_request(shift_swap_request.pk, benefactor.pk)
-    mock_get_user_and_device.assert_called_once_with(benefactor.pk)
+    mock_get_user_and_devices.assert_called_once_with(benefactor.pk)
     mock_send_push_notification.assert_not_called()
 
-    mock_get_user_and_device.reset_mock()
+    mock_get_user_and_devices.reset_mock()
 
-    mock_get_user_and_device.return_value = (benefactor, device_to_notify, maus)
+    mock_get_user_and_devices.return_value = (benefactor, [device_to_notify], maus)
     notify_user_about_shift_swap_request(shift_swap_request.pk, benefactor.pk)
-    mock_get_user_and_device.assert_called_once_with(benefactor.pk)
+    mock_get_user_and_devices.assert_called_once_with(benefactor.pk)
     mock_send_push_notification.assert_called_once()
 
-    assert mock_send_push_notification.call_args.args[0] == device_to_notify
-
-    message: Message = mock_send_push_notification.call_args.args[1]
+    user_arg, devices_arg, message = mock_send_push_notification.call_args.args
+    assert user_arg == benefactor
+    assert devices_arg == [device_to_notify]
     assert message.data["type"] == "oncall.info"
     assert message.data["title"] == "New shift swap request"
     assert message.data["subtitle"] == "John Doe, Test Schedule"
@@ -392,28 +391,33 @@ def test_get_shift_swap_request(make_organization, make_user, make_schedule, mak
 
 
 @pytest.mark.django_db
-def test_get_user_and_device(make_organization, make_user):
+def test_get_user_and_devices(make_organization, make_user):
     organization = make_organization()
     user = make_user(organization=organization)
 
     # no user found
-    assert _get_user_and_device(1234) is None
+    assert _get_user_and_devices(1234) is None
 
     # no device found
-    assert _get_user_and_device(user.pk) is None
+    assert _get_user_and_devices(user.pk) is None
 
     # no mobile app user settings found
     device = FCMDevice.objects.create(user=user, registration_id="test_device_id")
-    assert _get_user_and_device(user.pk) is None
+    assert _get_user_and_devices(user.pk) is None
 
     # info notifications disabled
     mobile_app_settings = MobileAppUserSettings.objects.create(user=user, info_notifications_enabled=False)
-    assert _get_user_and_device(user.pk) is None
+    assert _get_user_and_devices(user.pk) is None
 
     mobile_app_settings.info_notifications_enabled = True
     mobile_app_settings.save()
 
-    assert _get_user_and_device(user.pk) == (user, device, mobile_app_settings)
+    assert _get_user_and_devices(user.pk) == (user, [device], mobile_app_settings)
+
+    # info pushes go to all of the user's active devices
+    other_device = FCMDevice.objects.create(user=user, registration_id="other_device_id")
+    FCMDevice.objects.create(user=user, registration_id="inactive_device_id", active=False)
+    assert _get_user_and_devices(user.pk) == (user, [device, other_device], mobile_app_settings)
 
 
 @pytest.mark.django_db
@@ -441,12 +445,12 @@ def test_mark_notified(make_organization, make_user, make_schedule, make_shift_s
         assert mock_cache_set.call_args.kwargs["timeout"] == TIMEOUT
 
 
-@patch("apps.mobile_app.tasks.new_shift_swap_request._get_user_and_device")
+@patch("apps.mobile_app.tasks.new_shift_swap_request._get_user_and_devices")
 @patch("apps.mobile_app.tasks.new_shift_swap_request.send_push_notification")
 @pytest.mark.django_db
 def test_notify_beneficiary_about_taken_shift_swap_request(
     mock_send_push_notification,
-    mock_get_user_and_device,
+    mock_get_user_and_devices,
     make_organization,
     make_user,
     make_schedule,
@@ -470,21 +474,21 @@ def test_notify_beneficiary_about_taken_shift_swap_request(
     maus = MobileAppUserSettings.objects.create(user=beneficiary, info_notifications_enabled=True)
 
     # no user, device, or mobile app settings
-    mock_get_user_and_device.return_value = None
+    mock_get_user_and_devices.return_value = None
     notify_beneficiary_about_taken_shift_swap_request(shift_swap_request.pk)
-    mock_get_user_and_device.assert_called_once_with(beneficiary.pk)
+    mock_get_user_and_devices.assert_called_once_with(beneficiary.pk)
     mock_send_push_notification.assert_not_called()
 
-    mock_get_user_and_device.reset_mock()
+    mock_get_user_and_devices.reset_mock()
 
-    mock_get_user_and_device.return_value = (beneficiary, device_to_notify, maus)
+    mock_get_user_and_devices.return_value = (beneficiary, [device_to_notify], maus)
     notify_beneficiary_about_taken_shift_swap_request(shift_swap_request.pk)
-    mock_get_user_and_device.assert_called_once_with(beneficiary.pk)
+    mock_get_user_and_devices.assert_called_once_with(beneficiary.pk)
     mock_send_push_notification.assert_called_once()
 
-    assert mock_send_push_notification.call_args.args[0] == device_to_notify
-
-    message: Message = mock_send_push_notification.call_args.args[1]
+    user_arg, devices_arg, message = mock_send_push_notification.call_args.args
+    assert user_arg == beneficiary
+    assert devices_arg == [device_to_notify]
     assert message.data["type"] == "oncall.info"
     assert message.data["title"] == "Your shift swap request has been taken"
     assert message.data["subtitle"] == schedule_name

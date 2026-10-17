@@ -310,6 +310,7 @@ def test_switch_step_type_from_notify_to_wait(
         "user": admin.public_primary_key,
         "step": UserNotificationPolicy.Step.WAIT,
         "wait_delay": expected_wait_delay,
+        "notify_device": None,
     }
     response = client.put(
         url, data=json.dumps(data), content_type="application/json", **make_user_auth_headers(admin, token)
@@ -367,6 +368,7 @@ def test_switch_step_type_wait_to_notify(
         "user": admin.public_primary_key,
         "step": UserNotificationPolicy.Step.NOTIFY,
         "wait_delay": None,
+        "notify_device": None,
     }
     response = client.put(
         url, data=json.dumps(data), content_type="application/json", **make_user_auth_headers(admin, token)
@@ -411,6 +413,7 @@ def test_switch_notification_channel(
         "user": admin.public_primary_key,
         "step": UserNotificationPolicy.Step.NOTIFY,
         "wait_delay": None,
+        "notify_device": None,
     }
     response = client.put(
         url, data=json.dumps(data), content_type="application/json", **make_user_auth_headers(admin, token)
@@ -456,6 +459,7 @@ def test_switch_wait_delay(
         "user": admin.public_primary_key,
         "step": UserNotificationPolicy.Step.NOTIFY,
         "wait_delay": to_wait_delay,
+        "notify_device": None,
     }
     response = client.put(
         url, data=json.dumps(data), content_type="application/json", **make_user_auth_headers(admin, token)

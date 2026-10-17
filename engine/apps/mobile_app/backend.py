@@ -37,9 +37,7 @@ class MobileAppBackend(BaseMessagingBackend):
         token.delete()
 
         # delete push notification related info for user
-        user_active_device = FCMDevice.get_active_device_for_user(user)
-        if user_active_device is not None:
-            user_active_device.delete()
+        FCMDevice.objects.filter(user=user).delete()
 
     def serialize_user(self, user):
         return {"connected": getattr(user, "mobileappauthtoken", None) is not None}

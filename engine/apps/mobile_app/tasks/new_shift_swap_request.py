@@ -1,5 +1,4 @@
 import datetime
-import json
 import logging
 import math
 import typing
@@ -7,10 +6,10 @@ import typing
 from celery.utils.log import get_task_logger
 from django.core.cache import cache
 from django.utils import timezone
-from firebase_admin.messaging import APNSPayload, Aps, ApsAlert, CriticalSound, Message
+from firebase_admin.messaging import APNSPayload, Aps, ApsAlert, Message
 
-from apps.mobile_app.types import FCMMessageData, MessageType, Platform
-from apps.mobile_app.utils import MAX_RETRIES, construct_fcm_message, send_push_notification
+from apps.mobile_app.types import FCMMessageData, MessageType
+from apps.mobile_app.utils import MAX_RETRIES, construct_fcm_message, get_notification_sound, send_push_notification
 from apps.schedules.models import ShiftSwapRequest
 from apps.user_management.models import User
 from common.custom_celery_tasks import shared_dedicated_queue_retry_task
@@ -105,12 +104,12 @@ def _get_notification_title_and_subtitle(shift_swap_request: ShiftSwapRequest) -
 def _get_fcm_message(
     shift_swap_request: ShiftSwapRequest,
     user: User,
-    device_to_notify: "FCMDevice",
     mobile_app_user_settings: "MobileAppUserSettings",
 ) -> Message:
     thread_id = f"{shift_swap_request.public_primary_key}:{user.public_primary_key}:ssr"
 
     notification_title, notification_subtitle = _get_notification_title_and_subtitle(shift_swap_request)
+    notification_sound = get_notification_sound(mobile_app_user_settings, MessageType.INFO)
 
     # The mobile app will use this route to open the shift swap request
     route = f"/schedules/{shift_swap_request.schedule.public_primary_key}/ssrs/{shift_swap_request.public_primary_key}"
@@ -120,29 +119,19 @@ def _get_fcm_message(
         "subtitle": notification_subtitle,
         "orgName": user.organization.stack_slug,
         "route": route,
-        "info_notification_sound_name": mobile_app_user_settings.get_notification_sound_name(
-            MessageType.INFO, Platform.ANDROID
-        ),
-        "info_notification_volume_type": mobile_app_user_settings.info_notification_volume_type,
-        "info_notification_volume": str(mobile_app_user_settings.info_notification_volume),
-        "info_notification_volume_override": json.dumps(mobile_app_user_settings.info_notification_volume_override),
+        **notification_sound.data,
     }
 
     apns_payload = APNSPayload(
         aps=Aps(
             thread_id=thread_id,
             alert=ApsAlert(title=notification_title, body=notification_subtitle),
-            sound=CriticalSound(
-                critical=False,
-                name=mobile_app_user_settings.get_notification_sound_name(MessageType.INFO, Platform.IOS),
-            ),
-            custom_data={
-                "interruption-level": "time-sensitive",
-            },
+            sound=notification_sound.apns_sound,
+            custom_data=notification_sound.apns_custom_data,
         ),
     )
 
-    return construct_fcm_message(MessageType.INFO, device_to_notify, thread_id, data, apns_payload)
+    return construct_fcm_message(MessageType.INFO, thread_id, data, apns_payload)
 
 
 def _get_shift_swap_request(shift_swap_request_pk: int) -> typing.Optional[ShiftSwapRequest]:
@@ -153,7 +142,9 @@ def _get_shift_swap_request(shift_swap_request_pk: int) -> typing.Optional[Shift
         return
 
 
-def _get_user_and_device(user_pk: int) -> typing.Optional[typing.Tuple[User, "FCMDevice", "MobileAppUserSettings"]]:
+def _get_user_and_devices(
+    user_pk: int,
+) -> typing.Optional[typing.Tuple[User, typing.List["FCMDevice"], "MobileAppUserSettings"]]:
     # avoid circular import
     from apps.mobile_app.models import FCMDevice, MobileAppUserSettings
 
@@ -163,8 +154,8 @@ def _get_user_and_device(user_pk: int) -> typing.Optional[typing.Tuple[User, "FC
         logger.info(f"User {user_pk} does not exist")
         return
 
-    device_to_notify = FCMDevice.get_active_device_for_user(user)
-    if not device_to_notify:
+    devices_to_notify = FCMDevice.get_devices_to_notify(user)
+    if not devices_to_notify:
         logger.info(f"FCMDevice does not exist for user {user_pk}")
         return
 
@@ -178,7 +169,7 @@ def _get_user_and_device(user_pk: int) -> typing.Optional[typing.Tuple[User, "FC
         logger.info(f"Info notifications are not enabled for user {user_pk}")
         return
 
-    return (user, device_to_notify, mobile_app_user_settings)
+    return (user, devices_to_notify, mobile_app_user_settings)
 
 
 @shared_dedicated_queue_retry_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=MAX_RETRIES)
@@ -190,18 +181,18 @@ def notify_user_about_shift_swap_request(shift_swap_request_pk: int, user_pk: in
     if not shift_swap_request:
         return
 
-    user_and_device = _get_user_and_device(user_pk)
-    if not user_and_device:
+    user_and_devices = _get_user_and_devices(user_pk)
+    if not user_and_devices:
         return
 
-    user, device_to_notify, mobile_app_user_settings = user_and_device
+    user, devices_to_notify, mobile_app_user_settings = user_and_devices
 
     if not shift_swap_request.is_open:
         logger.info(f"Shift swap request {shift_swap_request_pk} is not open anymore")
         return
 
-    message = _get_fcm_message(shift_swap_request, user, device_to_notify, mobile_app_user_settings)
-    send_push_notification(device_to_notify, message)
+    message = _get_fcm_message(shift_swap_request, user, mobile_app_user_settings)
+    send_push_notification(user, devices_to_notify, message)
 
 
 @shared_dedicated_queue_retry_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=MAX_RETRIES)
@@ -237,10 +228,10 @@ def notify_beneficiary_about_taken_shift_swap_request(shift_swap_request_pk: int
     if not shift_swap_request:
         return
 
-    user_and_device = _get_user_and_device(shift_swap_request.beneficiary.pk)
-    if not user_and_device:
+    user_and_devices = _get_user_and_devices(shift_swap_request.beneficiary.pk)
+    if not user_and_devices:
         return
 
-    user, device_to_notify, mobile_app_user_settings = user_and_device
-    message = _get_fcm_message(shift_swap_request, user, device_to_notify, mobile_app_user_settings)
-    send_push_notification(device_to_notify, message)
+    user, devices_to_notify, mobile_app_user_settings = user_and_devices
+    message = _get_fcm_message(shift_swap_request, user, mobile_app_user_settings)
+    send_push_notification(user, devices_to_notify, message)

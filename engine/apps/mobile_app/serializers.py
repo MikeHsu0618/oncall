@@ -4,7 +4,8 @@ from fcm_django.api.rest_framework import FCMDeviceSerializer as BaseFCMDeviceSe
 from rest_framework import serializers
 from rest_framework.serializers import ValidationError
 
-from apps.mobile_app.models import MobileAppUserSettings
+from apps.api.serializers.alert_group import ShortAlertGroupSerializer
+from apps.mobile_app.models import MobileAppPushRecord, MobileAppUserSettings
 from common.api_helpers.custom_fields import TimeZoneField
 
 
@@ -83,3 +84,36 @@ class FCMDeviceSerializer(BaseFCMDeviceSerializer):
         if devices:
             raise ValidationError({"registration_id": "This field must be unique per us."})
         return attrs
+
+
+class NotificationHistoryAlertGroupSerializer(ShortAlertGroupSerializer):
+    class Meta(ShortAlertGroupSerializer.Meta):
+        fields = ShortAlertGroupSerializer.Meta.fields + ["started_at"]
+        read_only_fields = fields
+
+
+class MobileAppPushRecordSerializer(serializers.ModelSerializer):
+    """
+    One entry of the app's notification history (`NotificationHistoryLogModel` in the app).
+
+    The app picks a type-specific tile when the matching nested object is non-null (alert_group for
+    oncall.message / oncall.critical_message; shift_swap_request; schedule + schedule_event for oncall.info;
+    incident_data) and falls back to a generic tile otherwise. Only alert_group is served: the app's nested shapes
+    for the other objects are not verified, and a key it cannot parse would fail the whole list, so they are null.
+    """
+
+    UNSERVED_NESTED_OBJECTS = ("shift_swap_request", "schedule", "schedule_event", "incident_data")
+
+    id = serializers.CharField(read_only=True)
+    alert_group = NotificationHistoryAlertGroupSerializer(read_only=True, allow_null=True)
+
+    class Meta:
+        model = MobileAppPushRecord
+        fields = ("id", "notification_type", "title", "subtitle", "sent_at", "fcm_payload", "alert_group")
+        read_only_fields = fields
+
+    def to_representation(self, instance):
+        return {
+            **super().to_representation(instance),
+            **{field_name: None for field_name in self.UNSERVED_NESTED_OBJECTS},
+        }

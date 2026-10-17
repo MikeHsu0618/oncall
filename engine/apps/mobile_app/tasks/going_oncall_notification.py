@@ -1,5 +1,4 @@
 import datetime
-import json
 import logging
 import math
 import typing
@@ -9,10 +8,10 @@ import pytz
 from celery.utils.log import get_task_logger
 from django.core.cache import cache
 from django.utils import timezone
-from firebase_admin.messaging import APNSPayload, Aps, ApsAlert, CriticalSound, Message
+from firebase_admin.messaging import APNSPayload, Aps, ApsAlert, Message
 
-from apps.mobile_app.types import FCMMessageData, MessageType, Platform
-from apps.mobile_app.utils import MAX_RETRIES, construct_fcm_message, send_push_notification
+from apps.mobile_app.types import FCMMessageData, MessageType
+from apps.mobile_app.utils import MAX_RETRIES, construct_fcm_message, get_notification_sound, send_push_notification
 from apps.schedules.models.on_call_schedule import OnCallSchedule, ScheduleEvent
 from apps.user_management.models import User
 from common.cache import ensure_cache_key_allocates_to_the_same_hash_slot
@@ -63,7 +62,6 @@ def _get_notification_subtitle(
 def _get_fcm_message(
     user: User,
     schedule: OnCallSchedule,
-    device_to_notify: "FCMDevice",
     seconds_until_going_oncall: int,
     schedule_event: ScheduleEvent,
 ) -> Message:
@@ -75,34 +73,25 @@ def _get_fcm_message(
     mobile_app_user_settings, _ = MobileAppUserSettings.objects.get_or_create(user=user)
     notification_title = _get_notification_title(seconds_until_going_oncall)
     notification_subtitle = _get_notification_subtitle(schedule, schedule_event, mobile_app_user_settings)
+    notification_sound = get_notification_sound(mobile_app_user_settings, MessageType.INFO)
 
     data: FCMMessageData = {
         "title": notification_title,
         "subtitle": notification_subtitle,
         "orgName": user.organization.stack_slug,
-        "info_notification_sound_name": mobile_app_user_settings.get_notification_sound_name(
-            MessageType.INFO, Platform.ANDROID
-        ),
-        "info_notification_volume_type": mobile_app_user_settings.info_notification_volume_type,
-        "info_notification_volume": str(mobile_app_user_settings.info_notification_volume),
-        "info_notification_volume_override": json.dumps(mobile_app_user_settings.info_notification_volume_override),
+        **notification_sound.data,
     }
 
     apns_payload = APNSPayload(
         aps=Aps(
             thread_id=thread_id,
             alert=ApsAlert(title=notification_title, body=notification_subtitle),
-            sound=CriticalSound(
-                critical=False,
-                name=mobile_app_user_settings.get_notification_sound_name(MessageType.INFO, Platform.IOS),
-            ),
-            custom_data={
-                "interruption-level": "time-sensitive",
-            },
+            sound=notification_sound.apns_sound,
+            custom_data=notification_sound.apns_custom_data,
         ),
     )
 
-    return construct_fcm_message(MessageType.INFO, device_to_notify, thread_id, data, apns_payload)
+    return construct_fcm_message(MessageType.INFO, thread_id, data, apns_payload)
 
 
 def _shift_starts_within_range(
@@ -184,7 +173,7 @@ def conditionally_send_going_oncall_push_notifications_for_schedule(schedule_pk)
 
     PUSH_NOTIFICATION_TRACKING_CACHE_KEY_TTL = 60 * 60  # 60 minutes
     user_cache: typing.Dict[str, User] = {}
-    device_cache: typing.Dict[str, "FCMDevice"] = {}
+    devices_cache: typing.Dict[str, typing.List["FCMDevice"]] = {}
 
     logger.info(f"Start calculate_going_oncall_push_notifications_for_schedule for schedule {schedule_pk}")
 
@@ -221,14 +210,13 @@ def conditionally_send_going_oncall_push_notifications_for_schedule(schedule_pk)
                     logger.warning(f"User {user_pk} does not exist")
                     continue
 
-            device_to_notify = device_cache.get(user_pk, None)
-            if device_to_notify is None:
-                device_to_notify = FCMDevice.get_active_device_for_user(user)
+            devices_to_notify = devices_cache.get(user_pk, None)
+            if devices_to_notify is None:
+                devices_to_notify = FCMDevice.get_devices_to_notify(user)
+                devices_cache[user_pk] = devices_to_notify
 
-                if not device_to_notify:
-                    continue
-                else:
-                    device_cache[user_pk] = device_to_notify
+            if not devices_to_notify:
+                continue
 
             mobile_app_user_settings, _ = MobileAppUserSettings.objects.get_or_create(user=user)
 
@@ -239,8 +227,8 @@ def conditionally_send_going_oncall_push_notifications_for_schedule(schedule_pk)
             )
 
             if seconds_until_going_oncall is not None and not already_sent_this_push_notification:
-                message = _get_fcm_message(user, schedule, device_to_notify, seconds_until_going_oncall, schedule_event)
-                send_push_notification(device_to_notify, message)
+                message = _get_fcm_message(user, schedule, seconds_until_going_oncall, schedule_event)
+                send_push_notification(user, devices_to_notify, message)
                 cache.set(cache_key, True, PUSH_NOTIFICATION_TRACKING_CACHE_KEY_TTL)
             else:
                 logger.info(

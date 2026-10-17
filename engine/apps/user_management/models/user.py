@@ -65,6 +65,9 @@ def default_working_hours():
     return working_hours
 
 
+# Grafana's avatar route, optionally under its sub-path: /avatar/<md5 or sha256 hex of the email>.
+GRAFANA_AVATAR_PATH = re.compile(r"^(?:/[^?#]*)?/avatar/([0-9a-f]{32}|[0-9a-f]{64})$")
+
 class UserManager(models.Manager["User"]):
     pass
 
@@ -243,6 +246,11 @@ class User(models.Model):
         Use arg `organization` instead of `self.organization` to avoid multiple requests to db when getting avatar for
         users list
         """
+        match = GRAFANA_AVATAR_PATH.match(self.avatar_url or "")
+        if match:
+            # Grafana's /avatar/<hash> needs a Grafana session (the mobile App has none); it only proxies this
+            # Gravatar image, requested with Grafana's own parameters (pkg/api/avatar gravatarReqParams).
+            return f"https://secure.gravatar.com/avatar/{match.group(1)}?d=retro&r=pg&size=200"
         return urljoin(organization.grafana_url, self.avatar_url)
 
     @property

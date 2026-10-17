@@ -13,6 +13,9 @@ from apps.auth_token.models import BaseAuthToken
 from apps.mobile_app.types import MessageType, Platform
 
 if typing.TYPE_CHECKING:
+    from firebase_admin.messaging import Message
+
+    from apps.alerts.models import AlertGroup
     from apps.user_management.models import Organization, User
 
 MOBILE_APP_AUTH_VERIFICATION_TOKEN_TIMEOUT_SECONDS = 60 * 5  # 5 minutes
@@ -40,8 +43,17 @@ class FCMDevice(BaseFCMDevice):
         proxy = True
 
     @classmethod
-    def get_active_device_for_user(cls, user: "User") -> FCMDevice | None:
-        return cls.active_objects.filter(user=user).first()
+    def get_devices_to_notify(cls, user: "User", notify_device_id: int | None = None) -> list[FCMDevice]:
+        """
+        Devices a push for `user` is delivered to: the chosen device (a notification policy step's `notify_device`)
+        while it is still one of the user's active devices, otherwise all of the user's active devices.
+        """
+        active_devices = list(cls.active_objects.filter(user=user).order_by("id"))
+        if notify_device_id is not None:
+            chosen_devices = [device for device in active_devices if device.pk == notify_device_id]
+            if chosen_devices:
+                return chosen_devices
+        return active_devices
 
 
 class MobileAppVerificationTokenQueryset(models.QuerySet):
@@ -211,3 +223,60 @@ class MobileAppUserSettings(models.Model):
         }[platform]
 
         return f"{sound_name}{extension}"
+
+
+class MobileAppPushRecord(models.Model):
+    """
+    A mobile push that was handed off for delivery (to FCM directly, or to the FCM relay on OSS installations).
+
+    Backs `GET mobile_app/notification_history`, read by the app's notification history page and its missed-push
+    poller. The poller rebuilds a push from `fcm_payload` and shows it, so `fcm_payload` is exactly the FCM data
+    payload that was sent, and a record is only written after a successful hand-off
+    (see apps.mobile_app.utils.send_push_notification). One record is written per logical push, not per device: the
+    app reads the history with a per-user token and does not identify the calling device.
+    """
+
+    # Newest records kept per user; older ones are deleted when a new push is recorded.
+    MAX_RECORDS_PER_USER = 50
+
+    user = models.ForeignKey("user_management.User", on_delete=models.CASCADE, related_name="mobile_app_push_records")
+    # The device the push was targeted at, or null when it was fanned out to several devices.
+    device = models.ForeignKey("mobile_app.FCMDevice", on_delete=models.SET_NULL, null=True, related_name="+")
+    notification_type = models.CharField(max_length=50, choices=[(t.value, t.value) for t in MessageType])
+    title = models.TextField()
+    subtitle = models.TextField(default="")
+    sent_at = models.DateTimeField(default=timezone.now)
+    fcm_payload = JSONField()
+    alert_group = models.ForeignKey(
+        "alerts.AlertGroup", on_delete=models.CASCADE, null=True, related_name="mobile_app_push_records"
+    )
+
+    class Meta:
+        indexes = [models.Index(fields=["user", "sent_at"], name="mobile_app_push_user_sent_idx")]
+
+    @classmethod
+    def newest_for_user(cls, user: "User") -> models.QuerySet["MobileAppPushRecord"]:
+        return cls.objects.filter(user=user).order_by("-sent_at", "-id")
+
+    @classmethod
+    def record_sent_push(
+        cls,
+        user: "User",
+        device: FCMDevice | None,
+        message: "Message",
+        alert_group: "AlertGroup | None" = None,
+    ) -> "MobileAppPushRecord":
+        data = message.data
+        record = cls.objects.create(
+            user=user,
+            device=device,
+            notification_type=data["type"],
+            title=data["title"],
+            subtitle=data.get("subtitle") or "",
+            fcm_payload=dict(data),
+            alert_group=alert_group,
+        )
+        stale_record_ids = list(cls.newest_for_user(user).values_list("id", flat=True)[cls.MAX_RECORDS_PER_USER :])
+        if stale_record_ids:
+            cls.objects.filter(id__in=stale_record_ids).delete()
+        return record

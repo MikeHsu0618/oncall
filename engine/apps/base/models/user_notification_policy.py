@@ -114,6 +114,13 @@ class UserNotificationPolicy(OrderedModel):
 
     important = models.BooleanField(default=False)
 
+    # The device a mobile push step notifies, chosen in the mobile app's "Send to" picker (other steps ignore it).
+    # Null means all of the user's active devices, which is also the delivery fallback when the chosen device is no
+    # longer active.
+    notify_device = models.ForeignKey(
+        "mobile_app.FCMDevice", on_delete=models.SET_NULL, null=True, default=None, related_name="+"
+    )
+
     class Meta:
         ordering = ("order",)
         constraints = [
