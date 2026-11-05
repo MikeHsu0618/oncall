@@ -15,7 +15,7 @@ from rest_framework.test import APIClient
 from rest_framework.views import APIView
 
 from apps.api import permissions
-from apps.api.serializers.user import CurrentUserSerializer, UserHiddenFieldsSerializer
+from apps.api.serializers.user import CurrentUserSerializer, ScheduleUserSerializer, UserHiddenFieldsSerializer
 from apps.api.views.user import UPCOMING_SHIFTS_DEFAULT_DAYS
 from apps.base.models import UserNotificationPolicy
 from apps.phone_notifications.exceptions import FailedToFinishVerification
@@ -66,6 +66,7 @@ def test_current_user(
         "rbac_permissions": [{"action": action} for action in dict.fromkeys(expected_actions)],
         "timezone": None,
         "working_hours": default_working_hours(),
+        "irm_working_hours": None,
         "is_currently_oncall": False,
         "unverified_phone_number": None,
         "verified_phone_number": None,
@@ -326,6 +327,7 @@ def test_update_user_cant_change_email_and_username(
         "role": admin.role,
         "timezone": None,
         "working_hours": default_working_hours(),
+        "irm_working_hours": None,
         "is_currently_oncall": False,
         "unverified_phone_number": phone_number,
         "verified_phone_number": None,
@@ -380,6 +382,7 @@ def test_list_users(
                 "role": admin.role,
                 "timezone": None,
                 "working_hours": default_working_hours(),
+                "irm_working_hours": None,
                 "unverified_phone_number": None,
                 "verified_phone_number": admin.verified_phone_number,
                 "telegram_configuration": None,
@@ -406,6 +409,7 @@ def test_list_users(
                 "role": editor.role,
                 "timezone": None,
                 "working_hours": default_working_hours(),
+                "irm_working_hours": None,
                 "unverified_phone_number": None,
                 "verified_phone_number": None,
                 "telegram_configuration": None,
@@ -2481,3 +2485,112 @@ def test_list_users_filtered_by_is_currently_oncall(
     assert len(response) == 1
     assert user["pk"] == user2.public_primary_key
     assert user["teams"] == []
+
+
+IRM_WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+
+def _irm_week(**days):
+    return {day: days.get(day, []) for day in IRM_WEEKDAYS}
+
+
+@pytest.mark.django_db
+def test_irm_working_hours_round_trip(make_organization_and_user_with_plugin_token, make_user_auth_headers):
+    _, user, token = make_organization_and_user_with_plugin_token(role=permissions.LegacyAccessControlRole.EDITOR)
+    client = APIClient()
+    url = reverse("api-internal:user-detail", kwargs={"pk": user.public_primary_key})
+    headers = make_user_auth_headers(user, token)
+
+    assert client.get(url, **headers).json()["irm_working_hours"] is None
+
+    week = _irm_week(
+        monday=[{"start": "09:00:00", "end": "12:00:00"}, {"start": "13:00:00", "end": "23:59:59"}],
+        friday=[{"start": "09:00:00", "end": "17:00:00"}],
+    )
+    response = client.put(url, {"irm_working_hours": week}, format="json", **headers)
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["irm_working_hours"] == week
+
+    # The legacy field is a separate setting.
+    user.refresh_from_db()
+    assert user.irm_working_hours == week
+    assert client.get(url, **headers).json()["working_hours"] == default_working_hours()
+
+    # Missing days are left as they are; the editor always sends all seven to clear them.
+    tuesday = [{"start": "08:00:00", "end": "10:00:00"}]
+    response = client.put(url, {"irm_working_hours": {"tuesday": tuesday}}, format="json", **headers)
+    assert response.json()["irm_working_hours"] == {**week, "tuesday": tuesday}
+
+    # Other updates do not touch it.
+    response = client.put(url, {"timezone": "Asia/Taipei"}, format="json", **headers)
+    assert response.json()["irm_working_hours"] == {**week, "tuesday": tuesday}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("payload", [None, _irm_week()])
+def test_irm_working_hours_null_or_empty_week_turns_it_off(
+    make_organization_and_user_with_plugin_token, make_user_auth_headers, payload
+):
+    _, user, token = make_organization_and_user_with_plugin_token(role=permissions.LegacyAccessControlRole.EDITOR)
+    user.irm_working_hours = _irm_week(monday=[{"start": "09:00:00", "end": "17:00:00"}])
+    user.save(update_fields=["irm_working_hours"])
+    url = reverse("api-internal:user-detail", kwargs={"pk": user.public_primary_key})
+
+    response = APIClient().put(
+        url, {"irm_working_hours": payload}, format="json", **make_user_auth_headers(user, token)
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["irm_working_hours"] is None
+    user.refresh_from_db()
+    assert user.irm_working_hours is None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "monday",
+    [
+        "not-a-list",
+        [{"start": "09:00:00"}],
+        [{"start": "9am", "end": "17:00:00"}],
+        [{"start": "09:00", "end": "17:00"}],
+        [{"start": "17:00:00", "end": "09:00:00"}],
+        [{"start": "09:00:00", "end": "09:00:00"}],
+        [{"start": "09:00:00", "end": "12:00:00"}, {"start": "11:00:00", "end": "13:00:00"}],
+        [{"start": "13:00:00", "end": "14:00:00"}, {"start": "09:00:00", "end": "12:00:00"}],
+        [{"start": f"0{hour}:00:00", "end": f"0{hour}:30:00"} for hour in range(4)],
+    ],
+)
+def test_irm_working_hours_rejects_invalid_periods(
+    make_organization_and_user_with_plugin_token, make_user_auth_headers, monday
+):
+    _, user, token = make_organization_and_user_with_plugin_token(role=permissions.LegacyAccessControlRole.EDITOR)
+    url = reverse("api-internal:user-detail", kwargs={"pk": user.public_primary_key})
+
+    response = APIClient().put(
+        url, {"irm_working_hours": _irm_week(monday=monday)}, format="json", **make_user_auth_headers(user, token)
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    user.refresh_from_db()
+    assert user.irm_working_hours is None
+
+
+@pytest.mark.django_db
+def test_irm_working_hours_visible_to_teammates_and_on_schedules(
+    make_organization, make_user_for_organization, make_token_for_organization, make_user_auth_headers
+):
+    organization = make_organization()
+    week = _irm_week(monday=[{"start": "09:00:00", "end": "17:00:00"}])
+    teammate = make_user_for_organization(organization, irm_working_hours=week)
+    viewer = make_user_for_organization(organization, role=permissions.LegacyAccessControlRole.VIEWER)
+    _, token = make_token_for_organization(organization)
+
+    response = APIClient().get(
+        reverse("api-internal:user-detail", kwargs={"pk": teammate.public_primary_key}),
+        **make_user_auth_headers(viewer, token),
+    )
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["irm_working_hours"] == week
+
+    assert "irm_working_hours" in ScheduleUserSerializer.fields_to_keep
