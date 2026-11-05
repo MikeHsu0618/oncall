@@ -72,6 +72,42 @@ class WorkingHoursSerializer(serializers.Serializer):
     sunday = serializers.ListField(child=WorkingHoursPeriodSerializer())
 
 
+MAX_IRM_PERIODS_PER_DAY = 3
+IRM_WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+
+
+def _irm_day_field():
+    return serializers.ListField(
+        child=WorkingHoursPeriodSerializer(), required=False, max_length=MAX_IRM_PERIODS_PER_DAY
+    )
+
+
+class IrmWorkingHoursSerializer(serializers.Serializer):
+    monday = _irm_day_field()
+    tuesday = _irm_day_field()
+    wednesday = _irm_day_field()
+    thursday = _irm_day_field()
+    friday = _irm_day_field()
+    saturday = _irm_day_field()
+    sunday = _irm_day_field()
+
+    def validate(self, attrs):
+        for periods in attrs.values():
+            previous_end = None
+            for period in periods:
+                try:
+                    start = time.strptime(period["start"], "%H:%M:%S")
+                    end = time.strptime(period["end"], "%H:%M:%S")
+                except ValueError:
+                    raise serializers.ValidationError("'start' and 'end' fields must be in '%H:%M:%S' format")
+                if start >= end:
+                    raise serializers.ValidationError("'start' must be less than 'end'")
+                if previous_end is not None and start < previous_end:
+                    raise serializers.ValidationError("periods must be ascending and not overlap")
+                previous_end = end
+        return attrs
+
+
 class ListUserSerializer(DynamicFieldsModelSerializer, EagerLoadingMixin):
     pk = serializers.CharField(read_only=True, source="public_primary_key")
     slack_user_identity = SlackUserIdentitySerializer(read_only=True)
@@ -89,6 +125,7 @@ class ListUserSerializer(DynamicFieldsModelSerializer, EagerLoadingMixin):
     notification_chain_verbal = serializers.SerializerMethodField()
     cloud_connection_status = serializers.SerializerMethodField()
     working_hours = WorkingHoursSerializer(required=False)
+    irm_working_hours = IrmWorkingHoursSerializer(required=False, allow_null=True)
 
     SELECT_RELATED = [
         "telegram_verification_code",
@@ -114,6 +151,7 @@ class ListUserSerializer(DynamicFieldsModelSerializer, EagerLoadingMixin):
             "avatar_full",
             "timezone",
             "working_hours",
+            "irm_working_hours",
             "unverified_phone_number",
             "verified_phone_number",
             "slack_user_identity",
@@ -145,6 +183,14 @@ class ListUserSerializer(DynamicFieldsModelSerializer, EagerLoadingMixin):
                 if start >= end:
                     raise serializers.ValidationError("'start' must be less than 'end'")
         return working_hours
+
+    def validate_irm_working_hours(self, working_hours):
+        if working_hours is None:
+            return None
+        current = (self.instance.irm_working_hours or {}) if self.instance else {}
+        week = {day: working_hours.get(day, current.get(day, [])) for day in IRM_WEEKDAYS}
+        # A week with no periods reads back as off.
+        return week if any(week.values()) else None
 
     def validate_unverified_phone_number(self, value):
         if value:
@@ -252,6 +298,7 @@ class UserHiddenFieldsSerializer(ListUserSerializer):
         "avatar",
         "timezone",
         "working_hours",
+        "irm_working_hours",
         "notification_chain_verbal",
     ]
 
@@ -276,6 +323,7 @@ class ScheduleUserSerializer(ListUserSerializer):
         "avatar_full",
         "timezone",
         "working_hours",
+        "irm_working_hours",
         "slack_user_identity",
         "telegram_configuration",
     ]

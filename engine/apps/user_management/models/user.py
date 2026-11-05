@@ -182,6 +182,8 @@ class User(models.Model):
     # don't use "_timezone" directly, use the "timezone" property since it can be populated via slack user identity
     _timezone = models.CharField(max_length=50, null=True, default=None)
     working_hours = models.JSONField(null=True, default=default_working_hours)
+    # IRM's editor and schedule popover read this one. Null means turned off; `working_hours` stays separate.
+    irm_working_hours = models.JSONField(null=True, default=None)
 
     notification = models.ManyToManyField(
         "alerts.AlertGroup", through="alerts.UserHasNotification", related_name="users"
