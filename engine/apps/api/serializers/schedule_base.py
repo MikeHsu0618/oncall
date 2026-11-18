@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.api.serializers.labels import ScheduleLabelsSerializerMixin
 from apps.api.serializers.slack_channel import SlackChannelSerializer
 from apps.api.serializers.user_group import UserGroupSerializer
 from apps.schedules.constants import SCHEDULE_CHECK_NEXT_DAYS
@@ -15,7 +16,7 @@ from common.api_helpers.utils import CurrentOrganizationDefault
 from common.constants.irm import IRM_API_CONTRACT_VERSION
 
 
-class ScheduleBaseSerializer(EagerLoadingMixin, serializers.ModelSerializer):
+class ScheduleBaseSerializer(EagerLoadingMixin, ScheduleLabelsSerializerMixin, serializers.ModelSerializer):
     id = serializers.CharField(read_only=True, source="public_primary_key")
     organization = serializers.HiddenField(default=CurrentOrganizationDefault())
     team = TeamPrimaryKeyRelatedField(allow_null=True, required=False)
@@ -42,9 +43,11 @@ class ScheduleBaseSerializer(EagerLoadingMixin, serializers.ModelSerializer):
             "mention_oncall_next",
             "number_of_escalation_chains",
             "enable_web_overrides",
+            "labels",
         ]
 
     SELECT_RELATED = ["organization", "team", "user_group", "slack_channel"]
+    PREFETCH_RELATED = ["labels"]
 
     CANT_UPDATE_USER_GROUP_WARNING = (
         "Cannot update the user group, make sure to grant user group modification rights to "

@@ -13,6 +13,7 @@ from common.api_helpers.mixins import EagerLoadingMixin
 
 class PolymorphicScheduleSerializer(EagerLoadingMixin, PolymorphicSerializer):
     SELECT_RELATED = ["organization", "team", "user_group", "slack_channel"]
+    PREFETCH_RELATED = ["labels"]
 
     resource_type_field_name = "type"
 

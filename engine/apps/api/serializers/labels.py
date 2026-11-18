@@ -6,6 +6,7 @@ from apps.labels.models import (
     AssociatedLabel,
     LabelKeyCache,
     LabelValueCache,
+    ScheduleAssociatedLabel,
 )
 from apps.labels.utils import is_labels_feature_enabled
 
@@ -56,6 +57,47 @@ class AlertGroupLabelManagementSerializer(serializers.Serializer):
         if len(attrs["value"]["name"]) > MAX_VALUE_NAME_LENGTH:
             raise serializers.ValidationError({"value": {"name": "Label value is too long."}})
         return attrs
+
+
+class ScheduleLabelSerializer(serializers.Serializer):
+    """Name-based schedule label pair: `{"key": {"name": ...}, "value": {"name": ...}}`."""
+
+    class KeySerializer(serializers.Serializer):
+        name = serializers.CharField(source="key_name", max_length=MAX_KEY_NAME_LENGTH)
+
+    class ValueSerializer(serializers.Serializer):
+        name = serializers.CharField(source="value_name", max_length=MAX_VALUE_NAME_LENGTH)
+
+    key = KeySerializer(source="*")
+    value = ValueSerializer(source="*")
+
+
+class ScheduleLabelsSerializerMixin(serializers.Serializer):
+    labels = ScheduleLabelSerializer(many=True, required=False)
+
+    def validate_labels(self, labels):
+        pairs = [(label["key_name"], label["value_name"]) for label in labels]
+        if len(set(pairs)) != len(pairs):
+            raise serializers.ValidationError("Duplicate label")
+        return pairs
+
+    def create(self, validated_data):
+        labels = validated_data.pop("labels", None)
+        instance = super().create(validated_data)
+        self._replace_labels(instance, labels)
+        return instance
+
+    def update(self, instance, validated_data):
+        labels = validated_data.pop("labels", None)
+        instance = super().update(instance, validated_data)
+        self._replace_labels(instance, labels)
+        return instance
+
+    @staticmethod
+    def _replace_labels(instance, labels):
+        # `labels` absent from the request leaves the schedule's labels untouched; `[]` clears them
+        if labels is not None:
+            ScheduleAssociatedLabel.replace_for_schedule(instance, labels)
 
 
 class LabelOptionSerializer(serializers.Serializer):
