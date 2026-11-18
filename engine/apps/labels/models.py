@@ -2,7 +2,7 @@ import logging
 import typing
 from json import JSONDecodeError
 
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 
 from apps.labels.client import LabelsAPIClient, LabelsRepoAPIException
@@ -204,3 +204,44 @@ class WebhookAssociatedLabel(AssociatedLabel):
     def get_associating_label_field_name() -> str:
         """Returns ForeignKey field name for the associated model"""
         return "webhook"
+
+
+class ScheduleAssociatedLabel(models.Model):
+    """
+    Name-based label association for on-call schedules.
+
+    The IRM schedule editor sends free-form `{key: {name}, value: {name}}` pairs and allows several values for one key
+    (to associate a shared schedule with several services), so, like `AlertGroupAssociatedLabel`, schedule labels keep
+    key and value names instead of referencing the label repo cache by ID.
+    """
+
+    schedule = models.ForeignKey("schedules.OnCallSchedule", on_delete=models.CASCADE, related_name="labels")
+    organization = models.ForeignKey(
+        "user_management.Organization", on_delete=models.CASCADE, related_name="schedule_labels"
+    )
+
+    key_name = models.CharField(max_length=MAX_KEY_NAME_LENGTH)
+    value_name = models.CharField(max_length=MAX_VALUE_NAME_LENGTH)
+
+    class Meta:
+        ordering = ["pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["schedule", "key_name", "value_name"],
+                name="unique_schedule_label",
+            )
+        ]
+
+    @staticmethod
+    def replace_for_schedule(schedule, label_pairs: typing.List[typing.Tuple[str, str]]) -> None:
+        """Make `label_pairs` the schedule's labels, stored (and so returned) in the submitted order."""
+        with transaction.atomic():
+            schedule.labels.all().delete()
+            ScheduleAssociatedLabel.objects.bulk_create(
+                [
+                    ScheduleAssociatedLabel(
+                        schedule=schedule, organization=schedule.organization, key_name=key, value_name=value
+                    )
+                    for key, value in label_pairs
+                ]
+            )

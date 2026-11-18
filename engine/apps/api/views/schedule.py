@@ -1,8 +1,10 @@
 import datetime
 import functools
+import json
 import operator
 
 import pytz
+from django import forms
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Count, OuterRef, Prefetch, Q, Subquery
 from django.db.utils import IntegrityError
@@ -62,8 +64,44 @@ SCHEDULE_TYPE_TO_CLASS = {
 }
 
 
+class LabelPairsJSONField(forms.CharField):
+    """Parses a JSON list of `{"key": <name>, "value": <name>}` objects into `(key, value)` tuples."""
+
+    INVALID_MESSAGE = 'Expected a JSON list of {"key": <name>, "value": <name>} objects'
+
+    def clean(self, value):
+        value = super().clean(value)
+        if not value:
+            return None
+        try:
+            pairs = json.loads(value)
+        except ValueError:
+            raise forms.ValidationError(self.INVALID_MESSAGE)
+        if not isinstance(pairs, list) or not all(
+            isinstance(pair, dict) and isinstance(pair.get("key"), str) and isinstance(pair.get("value"), str)
+            for pair in pairs
+        ):
+            raise forms.ValidationError(self.INVALID_MESSAGE)
+        return [(pair["key"], pair["value"]) for pair in pairs]
+
+
+class LabelPairsAnyFilter(filters.Filter):
+    """Matches schedules having at least one of the given name-based label pairs."""
+
+    field_class = LabelPairsJSONField
+
+    def filter(self, queryset, value):
+        if not value:
+            return queryset
+        query = functools.reduce(
+            operator.or_, (Q(labels__key_name=key, labels__value_name=label_value) for key, label_value in value)
+        )
+        return queryset.filter(query).distinct()
+
+
 class ScheduleFilter(ByTeamModelFieldFilterMixin, ModelFieldFilterMixin, filters.FilterSet):
     team = TeamModelMultipleChoiceFilter()
+    labels_any = LabelPairsAnyFilter()
 
 
 class ScheduleView(
